@@ -1,6 +1,6 @@
 {
-  "name": "z1y-wind-spinner",
-  "version": "0.1.0",
+  "name": "grimstad-wind-farm-vr",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",

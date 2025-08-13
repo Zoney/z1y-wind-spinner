@@ -11,7 +11,7 @@ import { useGeolocation } from '@/hooks/useGeolocation';
 export default function Home() {
   const [windmills, setWindmills] = useState<WindmillConfig[]>(windmillConfigurations);
   const [showVR, setShowVR] = useState(false);
-  const { location, error, loading } = useGeolocation();
+  const { location, error, loading, retry } = useGeolocation();
   
   // Use GPS location if available, otherwise fallback to Grimstad location
   const userLocation = location || grimstadUserLocation;
@@ -41,7 +41,17 @@ export default function Home() {
         <p className="text-sm">Scroll to zoom, drag to rotate view</p>
         
         {loading && <p className="text-xs text-yellow-300 mt-1">Getting your location...</p>}
-        {error && <p className="text-xs text-red-300 mt-1">Location error: Using default location</p>}
+        {error && (
+          <div className="flex items-center gap-2 mt-1">
+            <p className="text-xs text-red-300">Location error: Using default location</p>
+            <button
+              onClick={retry}
+              className="text-xs px-2 py-1 bg-blue-600 hover:bg-blue-700 rounded text-white"
+            >
+              Retry
+            </button>
+          </div>
+        )}
         {location && <p className="text-xs text-green-300 mt-1">Using your GPS location</p>}
         
         <button 

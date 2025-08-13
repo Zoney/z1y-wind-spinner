@@ -29,12 +29,12 @@ export function Windmill({ config, position }: WindmillProps) {
     <group ref={groupRef} position={position}>
       <mesh position={[0, config.height / 2, 0]}>
         <cylinderGeometry args={[towerRadius, towerRadius * 1.5, config.height, 16]} />
-        <meshStandardMaterial color="#e8e8e8" />
+        <meshStandardMaterial color="#ff0000" />
       </mesh>
       
       <mesh position={[0, config.height + nacelleHeight / 2, 0]}>
         <boxGeometry args={[nacelleWidth, nacelleHeight, nacelleWidth / 2]} />
-        <meshStandardMaterial color="#f0f0f0" />
+        <meshStandardMaterial color="#ff0000" />
       </mesh>
       
       <group ref={bladesRef} position={[0, config.height + nacelleHeight, nacelleWidth / 4]}>
@@ -42,7 +42,7 @@ export function Windmill({ config, position }: WindmillProps) {
           <mesh key={index} rotation={[0, 0, (angle * Math.PI) / 180]}>
             <mesh position={[0, config.bladeLength / 2, 0]}>
               <boxGeometry args={[config.bladeWidth, config.bladeLength, 0.1]} />
-              <meshStandardMaterial color="#ffffff" />
+              <meshStandardMaterial color="#ff0000" />
             </mesh>
           </mesh>
         ))}

@@ -7,16 +7,17 @@ interface GeolocationState {
   location: UserLocation | null;
   error: string | null;
   loading: boolean;
+  retry: () => void;
 }
 
 export function useGeolocation(): GeolocationState {
-  const [state, setState] = useState<GeolocationState>({
+  const [state, setState] = useState<Omit<GeolocationState, 'retry'>>({
     location: null,
     error: null,
     loading: true,
   });
 
-  useEffect(() => {
+  const requestLocation = () => {
     if (!navigator.geolocation) {
       setState({
         location: null,
@@ -25,6 +26,8 @@ export function useGeolocation(): GeolocationState {
       });
       return;
     }
+
+    setState(prev => ({ ...prev, loading: true, error: null }));
 
     const handleSuccess = (position: GeolocationPosition) => {
       setState({
@@ -46,18 +49,23 @@ export function useGeolocation(): GeolocationState {
       });
     };
 
-    const watchId = navigator.geolocation.watchPosition(
+    navigator.geolocation.getCurrentPosition(
       handleSuccess,
       handleError,
       {
         enableHighAccuracy: true,
-        timeout: 10000,
+        timeout: 15000,
         maximumAge: 60000,
       }
     );
+  };
 
-    return () => navigator.geolocation.clearWatch(watchId);
+  useEffect(() => {
+    requestLocation();
   }, []);
 
-  return state;
+  return {
+    ...state,
+    retry: requestLocation,
+  };
 }

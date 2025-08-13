@@ -3,7 +3,7 @@
 import { useRef, useEffect } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Group, PositionalAudio, AudioListener } from 'three';
-import { Text, PositionalAudio as DreiPositionalAudio } from '@react-three/drei';
+import { Text } from '@react-three/drei';
 import { WindmillConfig, UserLocation } from '@/types/windmill';
 import { calculateDistance, getNoiseLevel } from '@/utils/coordinates';
 

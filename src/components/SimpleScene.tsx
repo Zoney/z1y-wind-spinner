@@ -14,7 +14,7 @@ interface SimpleSceneProps {
 export function SimpleScene({ windmills, userLocation }: SimpleSceneProps) {
   return (
     <div className="w-full h-screen">
-      <Canvas camera={{ position: [0, 10, 50], fov: 75 }}>
+      <Canvas camera={{ position: [0, 10, 50], fov: 75, far: 500000 }}>
         <ambientLight intensity={0.5} />
         <directionalLight position={[10, 10, 5]} intensity={1} />
         
@@ -25,13 +25,18 @@ export function SimpleScene({ windmills, userLocation }: SimpleSceneProps) {
           azimuth={0.25}
         />
         
-        <Environment preset="sunset" />
+        <Environment preset="sunset" background={false} />
         
         <OrbitControls enablePan={true} enableZoom={true} enableRotate={true} />
         
-        <mesh position={[0, -0.1, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-          <planeGeometry args={[10000, 10000]} />
-          <meshStandardMaterial color="#90EE90" transparent opacity={0.3} />
+        {/* Horizon line - Blue and Yellow */}
+        <mesh position={[0, 0, 0]} rotation={[0, 0, 0]}>
+          <torusGeometry args={[50000, 50, 3, 100]} />
+          <meshBasicMaterial color="#0066ff" />
+        </mesh>
+        <mesh position={[0, 0, 0]} rotation={[0, Math.PI / 2, 0]}>
+          <torusGeometry args={[50000, 50, 3, 100]} />
+          <meshBasicMaterial color="#ffff00" />
         </mesh>
         
         {windmills.map((windmill) => {

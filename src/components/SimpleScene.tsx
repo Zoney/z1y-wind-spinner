@@ -1,0 +1,50 @@
+'use client';
+
+import { Canvas } from '@react-three/fiber';
+import { OrbitControls, Sky, Environment } from '@react-three/drei';
+import { Windmill } from './Windmill';
+import { WindmillConfig, UserLocation } from '@/types/windmill';
+import { convertGPSToLocal } from '@/utils/coordinates';
+
+interface SimpleSceneProps {
+  windmills: WindmillConfig[];
+  userLocation: UserLocation;
+}
+
+export function SimpleScene({ windmills, userLocation }: SimpleSceneProps) {
+  return (
+    <div className="w-full h-screen">
+      <Canvas camera={{ position: [0, 10, 50], fov: 75 }}>
+        <ambientLight intensity={0.5} />
+        <directionalLight position={[10, 10, 5]} intensity={1} />
+        
+        <Sky
+          distance={450000}
+          sunPosition={[0, 1, 0]}
+          inclination={0}
+          azimuth={0.25}
+        />
+        
+        <Environment preset="sunset" />
+        
+        <OrbitControls enablePan={true} enableZoom={true} enableRotate={true} />
+        
+        <mesh position={[0, -0.1, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <planeGeometry args={[10000, 10000]} />
+          <meshStandardMaterial color="#90EE90" transparent opacity={0.3} />
+        </mesh>
+        
+        {windmills.map((windmill) => {
+          const localPosition = convertGPSToLocal(windmill.position, userLocation);
+          return (
+            <Windmill
+              key={windmill.id}
+              config={windmill}
+              position={localPosition}
+            />
+          );
+        })}
+      </Canvas>
+    </div>
+  );
+}

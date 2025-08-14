@@ -30,6 +30,13 @@ export function useGeolocation(): GeolocationState {
     setState(prev => ({ ...prev, loading: true, error: null }));
 
     const handleSuccess = (position: GeolocationPosition) => {
+      console.log('GPS Update:', {
+        lat: position.coords.latitude,
+        lng: position.coords.longitude,
+        accuracy: position.coords.accuracy,
+        timestamp: new Date(position.timestamp).toLocaleTimeString()
+      });
+      
       setState({
         location: {
           latitude: position.coords.latitude,
@@ -42,6 +49,7 @@ export function useGeolocation(): GeolocationState {
     };
 
     const handleError = (error: GeolocationPositionError) => {
+      console.error('GPS Error:', error.message);
       setState({
         location: null,
         error: error.message,
@@ -49,19 +57,26 @@ export function useGeolocation(): GeolocationState {
       });
     };
 
-    navigator.geolocation.getCurrentPosition(
+    // Use watchPosition for continuous updates instead of getCurrentPosition
+    const watchId = navigator.geolocation.watchPosition(
       handleSuccess,
       handleError,
       {
         enableHighAccuracy: true,
         timeout: 15000,
-        maximumAge: 60000,
+        maximumAge: 30000, // Reduced to get more frequent updates
       }
     );
+
+    // Return cleanup function
+    return () => {
+      navigator.geolocation.clearWatch(watchId);
+    };
   };
 
   useEffect(() => {
-    requestLocation();
+    const cleanup = requestLocation();
+    return cleanup;
   }, []);
 
   return {

@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react';
 import { WindmillWithAudio } from './WindmillWithAudio';
 import { VRCompass } from './VRCompass';
 import { WindmillConfig, UserLocation } from '@/types/windmill';
-import { convertGPSToLocal, getUserOffsetFromReference } from '@/utils/coordinates';
+import { convertGPSToLocal } from '@/utils/coordinates';
 
 interface ImmersiveVRSceneProps {
   windmills: WindmillConfig[];
@@ -52,8 +52,6 @@ function PassthroughManager() {
 }
 
 function VRContent({ windmills, userLocation }: ImmersiveVRSceneProps) {
-  // Calculate user's offset from the reference location
-  const userOffset = getUserOffsetFromReference(userLocation);
   const xr = useXR();
   const isPresenting = xr.session !== undefined;
   
@@ -65,8 +63,8 @@ function VRContent({ windmills, userLocation }: ImmersiveVRSceneProps) {
       {/* VR Compass for orientation */}
       <VRCompass />
       
-      {/* User position indicator relative to reference */}
-      <group position={userOffset}>
+      {/* Main scene group - user is at origin */}
+      <group position={[0, 0, 0]}>
         {/* Lighting */}
         <ambientLight intensity={0.3} />
         <directionalLight position={[10, 10, 5]} intensity={0.8} castShadow />
@@ -111,31 +109,57 @@ function VRContent({ windmills, userLocation }: ImmersiveVRSceneProps) {
           </mesh>
         )}
         
-        {/* Wind turbines positioned relative to user */}
-        {windmills.map((windmill) => {
-          const relativePosition = convertGPSToLocal(windmill.position, userLocation);
-          return (
+      </group>
+      
+      {/* Debug: Reference axes */}
+      <group>
+        {/* X axis (red) - pointing east */}
+        <mesh position={[50, 1, 0]}>
+          <boxGeometry args={[100, 2, 2]} />
+          <meshBasicMaterial color="red" />
+        </mesh>
+        {/* Z axis (blue) - pointing north */}
+        <mesh position={[0, 1, -50]}>
+          <boxGeometry args={[2, 2, 100]} />
+          <meshBasicMaterial color="blue" />
+        </mesh>
+        {/* Y axis (green) - pointing up */}
+        <mesh position={[0, 50, 0]}>
+          <boxGeometry args={[2, 100, 2]} />
+          <meshBasicMaterial color="green" />
+        </mesh>
+      </group>
+
+      {/* Wind turbines positioned relative to user at origin */}
+      {windmills.map((windmill) => {
+        const relativePosition = convertGPSToLocal(windmill.position, userLocation);
+        console.log(`Windmill ${windmill.id} position:`, relativePosition, 
+          `Distance: ${Math.sqrt(relativePosition[0]**2 + relativePosition[2]**2).toFixed(1)}m`);
+        
+        return (
+          <group key={windmill.id}>
+            {/* Debug marker - bright sphere at windmill base */}
+            <mesh position={[relativePosition[0], relativePosition[1] + 5, relativePosition[2]]}>
+              <sphereGeometry args={[10, 8, 8]} />
+              <meshBasicMaterial color="yellow" />
+            </mesh>
+            
+            {/* Actual windmill */}
             <WindmillWithAudio
-              key={windmill.id}
               config={windmill}
               position={relativePosition}
               userLocation={userLocation}
             />
-          );
-        })}
-      </group>
+          </group>
+        );
+      })}
     </>
   );
 }
 
 export function ImmersiveVRScene({ windmills, userLocation }: ImmersiveVRSceneProps) {
   const store = createXRStore();
-  const userOffset = getUserOffsetFromReference(userLocation);
-  const initialCameraPosition: [number, number, number] = [
-    userOffset[0], 
-    userOffset[1] + 1.6, 
-    userOffset[2]
-  ];
+  const initialCameraPosition: [number, number, number] = [0, 1.6, 0];
   
   return (
     <div className="w-full h-screen">

@@ -7,7 +7,7 @@ import { Sky, Environment, Stars } from '@react-three/drei';
 import { WindmillWithAudio } from './WindmillWithAudio';
 import { VRCompass } from './VRCompass';
 import { WindmillConfig, UserLocation } from '@/types/windmill';
-import { convertGPSToLocal, getUserOffsetFromReference } from '@/utils/coordinates';
+import { convertGPSToLocal } from '@/utils/coordinates';
 import { useDeviceOrientation } from '@/hooks/useDeviceOrientation';
 
 interface MobileARSceneProps {
@@ -39,25 +39,14 @@ function ARCamera({ orientation, videoTexture }: ARCameraProps) {
       const beta = (orientation.beta * Math.PI) / 180;   // X-axis (front/back tilt)
       const gamma = (orientation.gamma * Math.PI) / 180; // Y-axis (left/right tilt)
 
-      // Improved orientation calculation for mobile devices
-      // Account for device orientation and proper coordinate system
-      const isLandscape = window.screen.orientation?.angle === 90 || window.screen.orientation?.angle === -90;
-      
-      if (isLandscape) {
-        // Landscape mode adjustments
-        cameraRef.current.rotation.set(
-          -gamma,              // X rotation (device tilt becomes camera pitch)
-          alpha + Math.PI,     // Y rotation (compass with 180° offset)
-          beta - Math.PI / 2   // Z rotation (device roll)
-        );
-      } else {
-        // Portrait mode (default)
-        cameraRef.current.rotation.set(
-          beta - Math.PI / 2,  // X rotation (device tilt, adjusted for upright)
-          alpha,               // Y rotation (compass heading)
-          -gamma               // Z rotation (device roll compensation)
-        );
-      }
+      // Simplified AR camera orientation
+      // For AR, we want the camera to represent the device's view direction
+      // Use a more standard orientation mapping
+      cameraRef.current.rotation.set(
+        -beta,    // X rotation: device front/back tilt (inverted)
+        alpha,    // Y rotation: compass heading
+        gamma     // Z rotation: device left/right roll
+      );
     }
 
     // Update background with camera feed
@@ -74,7 +63,6 @@ function ARCamera({ orientation, videoTexture }: ARCameraProps) {
 }
 
 function ARContent({ windmills, userLocation, orientation, videoTexture }: MobileARSceneProps & { orientation: ARCameraProps['orientation']; videoTexture?: VideoTexture }) {
-  const userOffset = getUserOffsetFromReference(userLocation);
   
   return (
     <>
@@ -84,8 +72,8 @@ function ARContent({ windmills, userLocation, orientation, videoTexture }: Mobil
       {/* VR Compass for orientation */}
       <VRCompass />
       
-      {/* User position indicator relative to reference */}
-      <group position={userOffset}>
+      {/* Main scene group - user is at origin */}
+      <group position={[0, 0, 0]}>
         {/* Lighting */}
         <ambientLight intensity={0.4} />
         <directionalLight position={[10, 10, 5]} intensity={0.6} castShadow />
@@ -122,19 +110,50 @@ function ARContent({ windmills, userLocation, orientation, videoTexture }: Mobil
           />
         </mesh>
         
-        {/* Wind turbines positioned relative to user */}
-        {windmills.map((windmill) => {
-          const relativePosition = convertGPSToLocal(windmill.position, userLocation);
-          return (
+      </group>
+      
+      {/* Debug: Reference axes */}
+      <group>
+        {/* X axis (red) - pointing east */}
+        <mesh position={[50, 1, 0]}>
+          <boxGeometry args={[100, 2, 2]} />
+          <meshBasicMaterial color="red" />
+        </mesh>
+        {/* Z axis (blue) - pointing north */}
+        <mesh position={[0, 1, -50]}>
+          <boxGeometry args={[2, 2, 100]} />
+          <meshBasicMaterial color="blue" />
+        </mesh>
+        {/* Y axis (green) - pointing up */}
+        <mesh position={[0, 50, 0]}>
+          <boxGeometry args={[2, 100, 2]} />
+          <meshBasicMaterial color="green" />
+        </mesh>
+      </group>
+
+      {/* Wind turbines positioned relative to user at origin */}
+      {windmills.map((windmill) => {
+        const relativePosition = convertGPSToLocal(windmill.position, userLocation);
+        console.log(`AR Windmill ${windmill.id} position:`, relativePosition, 
+          `Distance: ${Math.sqrt(relativePosition[0]**2 + relativePosition[2]**2).toFixed(1)}m`);
+        
+        return (
+          <group key={windmill.id}>
+            {/* Debug marker - bright sphere at windmill base */}
+            <mesh position={[relativePosition[0], relativePosition[1] + 5, relativePosition[2]]}>
+              <sphereGeometry args={[10, 8, 8]} />
+              <meshBasicMaterial color="yellow" />
+            </mesh>
+            
+            {/* Actual windmill */}
             <WindmillWithAudio
-              key={windmill.id}
               config={windmill}
               position={relativePosition}
               userLocation={userLocation}
             />
-          );
-        })}
-      </group>
+          </group>
+        );
+      })}
     </>
   );
 }
@@ -143,12 +162,7 @@ export function MobileARScene({ windmills, userLocation }: MobileARSceneProps) {
   const { orientation, isSupported, hasPermission, error, requestPermission } = useDeviceOrientation();
   const [videoTexture, setVideoTexture] = useState<VideoTexture | undefined>();
   const [cameraError, setCameraError] = useState<string | null>(null);
-  const userOffset = getUserOffsetFromReference(userLocation);
-  const initialCameraPosition: [number, number, number] = [
-    userOffset[0], 
-    userOffset[1] + 1.6, 
-    userOffset[2]
-  ];
+  const initialCameraPosition: [number, number, number] = [0, 1.6, 0];
 
   // Initialize camera feed
   useEffect(() => {

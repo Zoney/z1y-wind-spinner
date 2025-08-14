@@ -179,7 +179,16 @@ function VRContent({ windmills, userLocation }: ImmersiveVRSceneProps) {
 }
 
 export function ImmersiveVRScene({ windmills, userLocation }: ImmersiveVRSceneProps) {
-  const store = createXRStore();
+  const store = createXRStore({
+    controller: {
+      left: true,   // Enable left controller
+      right: true   // Enable right controller
+    },
+    hand: {
+      left: true,   // Enable left hand tracking
+      right: true   // Enable right hand tracking
+    }
+  });
   const initialCameraPosition: [number, number, number] = [0, 1.6, 0];
   
   return (

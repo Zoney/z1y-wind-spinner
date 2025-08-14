@@ -28,6 +28,37 @@ export function SharedSceneContent({
         {/* Lighting */}
         <ambientLight intensity={0.3} />
         <directionalLight position={[10, 10, 5]} intensity={0.8} castShadow />
+        
+        {/* Ground reference markers for debugging */}
+        {/* North marker - red */}
+        <mesh position={[0, 0.1, -100]}>
+          <boxGeometry args={[5, 0.2, 10]} />
+          <meshBasicMaterial color="red" />
+        </mesh>
+        
+        {/* South marker - green */}
+        <mesh position={[0, 0.1, 100]}>
+          <boxGeometry args={[5, 0.2, 10]} />
+          <meshBasicMaterial color="green" />
+        </mesh>
+        
+        {/* East marker - blue */}
+        <mesh position={[100, 0.1, 0]}>
+          <boxGeometry args={[10, 0.2, 5]} />
+          <meshBasicMaterial color="blue" />
+        </mesh>
+        
+        {/* West marker - yellow */}
+        <mesh position={[-100, 0.1, 0]}>
+          <boxGeometry args={[10, 0.2, 5]} />
+          <meshBasicMaterial color="yellow" />
+        </mesh>
+        
+        {/* Origin marker - white */}
+        <mesh position={[0, 0.5, 0]}>
+          <sphereGeometry args={[2, 16, 16]} />
+          <meshBasicMaterial color="white" />
+        </mesh>
       </group>
       
       {/* Compass - works in both VR and AR */}
@@ -105,20 +136,31 @@ export function SharedSceneContent({
         // Offset by user's position to place user at origin
         const relativePosition: [number, number, number] = [
           fixedWorldPosition[0] - userOffset[0],
-          fixedWorldPosition[1] - userOffset[1], 
+          0, // Place windmills at ground level (y=0)
           fixedWorldPosition[2] - userOffset[2]
         ];
         
-        console.log(`Windmill ${windmill.id} fixed world position:`, fixedWorldPosition);
-        console.log(`Windmill ${windmill.id} relative to user:`, relativePosition, 
-          `Distance: ${Math.sqrt(relativePosition[0]**2 + relativePosition[2]**2).toFixed(1)}m`);
+        const distance = Math.sqrt(relativePosition[0]**2 + relativePosition[2]**2);
+        console.log(`Windmill ${windmill.id}:`, {
+          gps: windmill.position,
+          fixedWorld: fixedWorldPosition,
+          userOffset,
+          relative: relativePosition,
+          distance: `${distance.toFixed(1)}m`
+        });
         
         return (
           <group key={windmill.id}>
-            {/* Debug marker - bright sphere at windmill base */}
-            <mesh position={[relativePosition[0], relativePosition[1] + 5, relativePosition[2]]}>
-              <sphereGeometry args={[10, 8, 8]} />
-              <meshBasicMaterial color="yellow" />
+            {/* Debug marker - bright sphere at windmill base for visibility */}
+            <mesh position={[relativePosition[0], 5, relativePosition[2]]}>
+              <sphereGeometry args={[3, 8, 8]} />
+              <meshBasicMaterial color="yellow" transparent opacity={0.8} />
+            </mesh>
+            
+            {/* Distance label */}
+            <mesh position={[relativePosition[0], 15, relativePosition[2]]}>
+              <sphereGeometry args={[1, 8, 8]} />
+              <meshBasicMaterial color="red" />
             </mesh>
             
             {/* Actual windmill */}

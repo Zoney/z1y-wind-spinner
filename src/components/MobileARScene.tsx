@@ -15,6 +15,7 @@ interface MobileARSceneProps {
 export function MobileARScene({ windmills, userLocation }: MobileARSceneProps) {
   const { permission, requestPermission, error, isSupported } = useDeviceOrientation();
   const [arEnabled, setArEnabled] = useState(false);
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   
   const initialCameraPosition: [number, number, number] = [0, 1.6, 0];
   
@@ -22,11 +23,42 @@ export function MobileARScene({ windmills, userLocation }: MobileARSceneProps) {
     if (permission === 'not-requested') {
       await requestPermission();
     }
+    
+    // Request camera access for AR
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { 
+          facingMode: 'environment', // Back camera
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
+        } 
+      });
+      setCameraStream(stream);
+    } catch (error) {
+      console.error('Failed to access camera:', error);
+    }
+    
     setArEnabled(true);
   };
 
   return (
     <div className="w-full h-screen relative">
+      {/* Camera background for AR */}
+      {cameraStream && (
+        <video
+          ref={(video) => {
+            if (video && cameraStream) {
+              video.srcObject = cameraStream;
+              video.play();
+            }
+          }}
+          className="absolute inset-0 w-full h-full object-cover z-0"
+          autoPlay
+          playsInline
+          muted
+        />
+      )}
+      
       <Canvas
         shadows
         camera={{ 
@@ -38,8 +70,9 @@ export function MobileARScene({ windmills, userLocation }: MobileARSceneProps) {
         gl={{ 
           antialias: true,
           powerPreference: "high-performance",
-          alpha: false // Opaque background for AR
+          alpha: true // Transparent background for AR overlay
         }}
+        className="absolute inset-0 z-10"
       >
         {/* AR Camera Controller - replaces VR headset tracking */}
         <ARCameraController enableControls={arEnabled} />
@@ -49,7 +82,7 @@ export function MobileARScene({ windmills, userLocation }: MobileARSceneProps) {
           windmills={windmills} 
           userLocation={userLocation}
           showCompass={true}
-          showMeasurementPoles={true}
+          showMeasurementPoles={false} // Hide measurement poles in AR for clarity
         />
       </Canvas>
       

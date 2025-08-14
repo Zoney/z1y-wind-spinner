@@ -33,31 +33,28 @@ function ARCamera({ orientation, videoTexture }: ARCameraProps) {
     
     // Only apply orientation if we have valid data
     if (orientation.alpha !== null && orientation.beta !== null && orientation.gamma !== null) {
-      // Simplified AR camera - direct rotation mapping
       // Device orientation API values:
-      // - alpha: compass heading (we'll use for horizontal rotation)
+      // - alpha: compass heading (0-360°, 0 = North)
       // - beta: device pitch (0° = flat, 90° = upright, -90° = upside down)
       // - gamma: device roll (left/right tilt)
       
+      // Convert to radians
       const alpha = (orientation.alpha * Math.PI) / 180;
       const beta = (orientation.beta * Math.PI) / 180;  
-      // const gamma = (orientation.gamma * Math.PI) / 180; // Unused for now
+      const gamma = (orientation.gamma * Math.PI) / 180;
 
-      // For AR: apply rotations directly to match device orientation
-      // Key insight: when phone tilts up, we want to look up
+      // Use quaternion-based rotation to avoid gimbal lock
+      // Create rotation from device orientation using proper ZXY order
+      cameraRef.current.rotation.order = 'ZXY';
       
-      // Reset camera rotation first
-      cameraRef.current.rotation.set(0, 0, 0);
+      // Map device orientation to camera rotation:
+      // - Y rotation (yaw): compass heading (alpha)
+      // - X rotation (pitch): device tilt (beta) with proper offset
+      // - Z rotation (roll): device roll (gamma) - minimal for stability
       
-      // Apply rotations in correct order:
-      // 1. Pitch (up/down tilt): when device tilts up (beta increases), look up
-      cameraRef.current.rotation.x = beta - Math.PI / 2; // Offset for upright phone
-      
-      // 2. Yaw (left/right turn): compass heading
-      cameraRef.current.rotation.y = alpha;
-      
-      // 3. Roll (screen rotation): ignore for now to avoid disorientation
-      // cameraRef.current.rotation.z = gamma;
+      cameraRef.current.rotation.y = -alpha; // Negative for correct compass direction
+      cameraRef.current.rotation.x = -(beta - Math.PI / 2); // Corrected pitch mapping
+      cameraRef.current.rotation.z = gamma * 0.1; // Dampened roll for stability
     }
 
     // Update background with camera feed

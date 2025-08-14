@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { SimpleScene } from '@/components/SimpleScene';
 import { ImmersiveVRScene } from '@/components/ImmersiveVRScene';
 import { MobileARScene } from '@/components/MobileARScene';
@@ -8,40 +8,15 @@ import { WindmillControls } from '@/components/WindmillControls';
 import { windmillConfigurations, grimstadUserLocation } from '@/data/windmill-config';
 import { WindmillConfig } from '@/types/windmill';
 import { useGeolocation } from '@/hooks/useGeolocation';
-import { isMobileDevice, supportsDeviceOrientation } from '@/utils/deviceDetection';
 
 export default function Home() {
   const [windmills, setWindmills] = useState<WindmillConfig[]>(windmillConfigurations);
   const [showVR, setShowVR] = useState(false);
-  const [showMobileAR, setShowMobileAR] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-  const [hasOrientationSupport, setHasOrientationSupport] = useState(false);
+  const [showAR, setShowAR] = useState(false);
   const { location, error, loading, retry } = useGeolocation();
   
   // Use GPS location if available, otherwise fallback to Grimstad location
   const userLocation = location || grimstadUserLocation;
-
-  useEffect(() => {
-    setIsMobile(isMobileDevice());
-    setHasOrientationSupport(supportsDeviceOrientation());
-  }, []);
-
-  if (showMobileAR) {
-    return (
-      <div className="w-full h-screen">
-        <MobileARScene 
-          windmills={windmills} 
-          userLocation={userLocation}
-        />
-        <button 
-          onClick={() => setShowMobileAR(false)}
-          className="absolute top-4 right-4 z-20 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded text-sm"
-        >
-          Exit AR Mode
-        </button>
-      </div>
-    );
-  }
 
   if (showVR) {
     return (
@@ -55,6 +30,23 @@ export default function Home() {
           className="absolute top-4 right-4 z-20 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded text-sm"
         >
           Exit VR Mode
+        </button>
+      </div>
+    );
+  }
+
+  if (showAR) {
+    return (
+      <div className="w-full h-screen">
+        <MobileARScene 
+          windmills={windmills} 
+          userLocation={userLocation}
+        />
+        <button 
+          onClick={() => setShowAR(false)}
+          className="absolute top-4 right-4 z-20 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded text-sm"
+        >
+          Exit AR Mode
         </button>
       </div>
     );
@@ -82,29 +74,18 @@ export default function Home() {
         {location && <p className="text-xs text-green-300 mt-1">Using your GPS location</p>}
         
         <div className="mt-2 space-y-2">
-          {isMobile && hasOrientationSupport ? (
-            <button 
-              onClick={() => setShowMobileAR(!showMobileAR)}
-              className="block w-full px-3 py-2 bg-green-600 hover:bg-green-700 rounded text-sm"
-            >
-              📱 Enable Mobile AR Mode
-            </button>
-          ) : null}
-          
           <button 
             onClick={() => setShowVR(!showVR)}
             className="block w-full px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm"
           >
             🥽 {showVR ? 'Exit VR Mode' : 'Enable VR Headset Mode'}
           </button>
-          
-          {isMobile && (
-            <p className="text-xs text-yellow-300 mt-1">
-              {hasOrientationSupport 
-                ? "📱 Mobile AR: Move device to look around" 
-                : "Device orientation not supported"}
-            </p>
-          )}
+          <button 
+            onClick={() => setShowAR(!showAR)}
+            className="block w-full px-3 py-2 bg-green-600 hover:bg-green-700 rounded text-sm"
+          >
+            📱 {showAR ? 'Exit AR Mode' : 'Enable Mobile AR Mode'}
+          </button>
         </div>
       </div>
       

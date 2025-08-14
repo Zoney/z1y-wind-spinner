@@ -51,7 +51,7 @@ export function WindmillWithAudio({ config, position, userLocation }: WindmillWi
 
   return (
     <group ref={groupRef} position={position}>
-      {/* Tower - Enhanced for AR visibility */}
+      {/* Tower */}
       <mesh position={[0, config.height / 2, 0]}>
         <cylinderGeometry args={[towerRadius, towerRadius * 1.5, config.height, 16]} />
         <meshStandardMaterial 
@@ -61,7 +61,7 @@ export function WindmillWithAudio({ config, position, userLocation }: WindmillWi
         />
       </mesh>
       
-      {/* Nacelle - Enhanced for AR visibility */}
+      {/* Nacelle */}
       <mesh position={[0, config.height + nacelleHeight / 2, 0]}>
         <boxGeometry args={[nacelleWidth, nacelleHeight, nacelleWidth / 2]} />
         <meshStandardMaterial 
@@ -71,7 +71,7 @@ export function WindmillWithAudio({ config, position, userLocation }: WindmillWi
         />
       </mesh>
       
-      {/* Blades - Enhanced for AR visibility */}
+      {/* Blades */}
       <group ref={bladesRef} position={[0, config.height + nacelleHeight, nacelleWidth / 4]}>
         {[0, 120, 240].map((angle, index) => (
           <mesh key={index} rotation={[0, 0, (angle * Math.PI) / 180]}>

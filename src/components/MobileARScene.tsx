@@ -1,12 +1,10 @@
 'use client';
 
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { useRef, useEffect, useState } from 'react';
-import { PerspectiveCamera, VideoTexture } from 'three';
-import { Sky, Environment, Stars } from '@react-three/drei';
-import { WindmillWithAudio } from './WindmillWithAudio';
+import { Canvas } from '@react-three/fiber';
+import { useState } from 'react';
+import { SharedSceneContent } from './SharedSceneContent';
+import { ARCameraController } from './ARCameraController';
 import { WindmillConfig, UserLocation } from '@/types/windmill';
-import { convertGPSToLocal } from '@/utils/coordinates';
 import { useDeviceOrientation } from '@/hooks/useDeviceOrientation';
 
 interface MobileARSceneProps {
@@ -14,343 +12,21 @@ interface MobileARSceneProps {
   userLocation: UserLocation;
 }
 
-interface ARCameraProps {
-  orientation: {
-    alpha: number | null;
-    beta: number | null;
-    gamma: number | null;
-    absolute: boolean;
-  };
-  videoTexture?: VideoTexture;
-}
-
-function ARCamera({ orientation, videoTexture }: ARCameraProps) {
-  const { camera, scene } = useThree();
-  const cameraRef = useRef<PerspectiveCamera>(null);
-  const lastValidOrientation = useRef<{ alpha: number; beta: number; gamma: number } | null>(null);
-
-  useFrame(() => {
-    if (!cameraRef.current) return;
-    
-    // Only apply orientation if we have valid data
-    if (orientation.alpha !== null && orientation.beta !== null && orientation.gamma !== null) {
-      // Store current valid orientation
-      const currentOrientation = {
-        alpha: orientation.alpha,
-        beta: orientation.beta,
-        gamma: orientation.gamma
-      };
-
-      // Handle discontinuities by checking for large jumps
-      if (lastValidOrientation.current) {
-        const alphaDiff = Math.abs(currentOrientation.alpha - lastValidOrientation.current.alpha);
-        const betaDiff = Math.abs(currentOrientation.beta - lastValidOrientation.current.beta);
-        
-        // Handle alpha wraparound (0-360 boundary)
-        if (alphaDiff > 180) {
-          if (currentOrientation.alpha > 180) {
-            currentOrientation.alpha -= 360;
-          } else {
-            currentOrientation.alpha += 360;
-          }
-        }
-        
-        // Smooth large beta changes to prevent flipping
-        if (betaDiff > 30) {
-          currentOrientation.beta = lastValidOrientation.current.beta + 
-            Math.sign(currentOrientation.beta - lastValidOrientation.current.beta) * 30;
-        }
-      }
-
-      // Convert to radians with proper coordinate system mapping
-      // Device coordinate system -> Three.js coordinate system
-      const alpha = (currentOrientation.alpha * Math.PI) / 180;
-      const beta = (currentOrientation.beta * Math.PI) / 180;
-      const gamma = (currentOrientation.gamma * Math.PI) / 180;
-
-      // Use YXZ rotation order to avoid gimbal lock issues
-      cameraRef.current.rotation.order = 'YXZ';
-      
-      // Map device orientation to camera rotation:
-      // For portrait phone held upright:
-      // - alpha (compass): Y-axis rotation (horizontal turning)
-      // - beta (pitch): X-axis rotation (up/down looking)  
-      // - gamma (roll): Z-axis rotation (screen rotation)
-      
-      // Apply rotations with correct signs and offsets for natural AR behavior
-      cameraRef.current.rotation.y = alpha; // Compass heading
-      cameraRef.current.rotation.x = -(beta - Math.PI / 2); // Pitch (inverted for correct up/down)
-      cameraRef.current.rotation.z = -gamma * 0.2; // Minimal roll compensation
-      
-      // Store for next frame discontinuity detection
-      lastValidOrientation.current = currentOrientation;
-    }
-
-    // Update background with camera feed
-    if (videoTexture && scene.background !== videoTexture) {
-      scene.background = videoTexture;
-    }
-  });
-
-  useEffect(() => {
-    cameraRef.current = camera as PerspectiveCamera;
-  }, [camera]);
-
-  return null;
-}
-
-function ARContent({ windmills, userLocation, orientation, videoTexture }: MobileARSceneProps & { orientation: ARCameraProps['orientation']; videoTexture?: VideoTexture }) {
-  
-  return (
-    <>
-      {/* AR Camera controls */}
-      <ARCamera orientation={orientation} videoTexture={videoTexture} />
-      
-      {/* Main scene group - user is at origin */}
-      <group position={[0, 0, 0]}>
-        {/* Enhanced lighting for AR visibility */}
-        <ambientLight intensity={0.8} />
-        <directionalLight position={[10, 10, 5]} intensity={1.2} castShadow />
-        <directionalLight position={[-10, 10, -5]} intensity={0.8} />
-        <directionalLight position={[0, 20, 0]} intensity={0.6} />
-        
-        {/* Environment - very subtle for AR overlay */}
-        {!videoTexture && (
-          <group>
-            <Sky
-              distance={450000}
-              sunPosition={[0, 1, 0]}
-              inclination={0}
-              azimuth={0.25}
-            />
-            <Environment preset="sunset" />
-            <Stars
-              radius={100}
-              depth={50}
-              count={3000}
-              factor={2}
-              saturation={0}
-              fade
-              speed={1}
-            />
-          </group>
-        )}
-        
-        {/* Ground plane - very transparent for AR overlay */}
-        <mesh position={[0, -50, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-          <planeGeometry args={[10000, 10000]} />
-          <meshStandardMaterial 
-            color="#2d5016" 
-            transparent 
-            opacity={videoTexture ? 0.05 : 0.1} 
-          />
-        </mesh>
-        
-      </group>
-      
-      {/* Debug: Reference axes and markers */}
-      <group>
-        {/* Close debug markers to test visibility */}
-        <mesh position={[10, 5, 0]}>
-          <sphereGeometry args={[2, 8, 8]} />
-          <meshBasicMaterial color="red" />
-        </mesh>
-        <mesh position={[0, 5, -10]}>
-          <sphereGeometry args={[2, 8, 8]} />
-          <meshBasicMaterial color="blue" />
-        </mesh>
-        <mesh position={[-10, 5, 0]}>
-          <sphereGeometry args={[2, 8, 8]} />
-          <meshBasicMaterial color="green" />
-        </mesh>
-        
-        {/* Distance markers every 100m */}
-        {[100, 200, 500, 1000, 2000].map(distance => (
-          <group key={distance}>
-            <mesh position={[distance, 10, 0]}>
-              <sphereGeometry args={[5, 8, 8]} />
-              <meshBasicMaterial color="yellow" />
-            </mesh>
-            <mesh position={[0, 10, -distance]}>
-              <sphereGeometry args={[5, 8, 8]} />
-              <meshBasicMaterial color="cyan" />
-            </mesh>
-          </group>
-        ))}
-        
-        {/* X axis (red) - pointing east */}
-        <mesh position={[25, 1, 0]}>
-          <boxGeometry args={[50, 2, 2]} />
-          <meshBasicMaterial color="red" />
-        </mesh>
-        {/* Z axis (blue) - pointing north */}
-        <mesh position={[0, 1, -25]}>
-          <boxGeometry args={[2, 2, 50]} />
-          <meshBasicMaterial color="blue" />
-        </mesh>
-        {/* Y axis (green) - pointing up */}
-        <mesh position={[0, 25, 0]}>
-          <boxGeometry args={[2, 50, 2]} />
-          <meshBasicMaterial color="green" />
-        </mesh>
-      </group>
-
-      {/* Wind turbines positioned relative to user at origin */}
-      {windmills.map((windmill) => {
-        const relativePosition = convertGPSToLocal(windmill.position, userLocation);
-        
-        // Validate position is reasonable
-        if (!relativePosition || relativePosition.some(coord => !isFinite(coord))) {
-          console.error(`Invalid position for windmill ${windmill.id}:`, relativePosition);
-          return null;
-        }
-        
-        // Calculate distance for debugging
-        const distance = Math.sqrt(relativePosition[0]**2 + relativePosition[2]**2);
-        
-        // Only show windmills within reasonable distance (50km max)
-        if (distance > 50000) {
-          console.warn(`Windmill ${windmill.id} too far away: ${distance.toFixed(1)}m`);
-          return null;
-        }
-        
-        // Ensure windmill is at proper height relative to ground
-        // Windmills should appear at their GPS altitude, which includes the tower height
-        const windmillGroundHeight = relativePosition[1]; // This is the altitude difference
-        const windmillTowerBase = windmillGroundHeight; // Tower base at ground level
-        const windmillHeight = windmill.height || 100; // Default 100m tower
-        
-        console.log(`AR Windmill ${windmill.id}:`, {
-          position: relativePosition,
-          distance: `${distance.toFixed(1)}m`,
-          altitude: `${windmillGroundHeight.toFixed(1)}m`,
-          towerHeight: `${windmillHeight}m`,
-          coordinates: `GPS(${windmill.position.latitude.toFixed(6)}, ${windmill.position.longitude.toFixed(6)})`
-        });
-        
-        return (
-          <group key={windmill.id}>
-            {/* Ground marker at base of windmill */}
-            <mesh position={[relativePosition[0], windmillTowerBase + 5, relativePosition[2]]}>
-              <sphereGeometry args={[8, 8, 8]} />
-              <meshBasicMaterial color="red" />
-            </mesh>
-            
-            {/* Tall marker at nacelle height (top of tower) */}
-            <mesh position={[relativePosition[0], windmillTowerBase + windmillHeight, relativePosition[2]]}>
-              <sphereGeometry args={[12, 8, 8]} />
-              <meshBasicMaterial color="magenta" />
-            </mesh>
-            
-            {/* Vertical line showing tower height */}
-            <mesh position={[relativePosition[0], windmillTowerBase + windmillHeight / 2, relativePosition[2]]}>
-              <boxGeometry args={[2, windmillHeight, 2]} />
-              <meshBasicMaterial color="orange" transparent opacity={0.7} />
-            </mesh>
-            
-            {/* Actual windmill - positioned at ground level */}
-            <WindmillWithAudio
-              config={windmill}
-              position={[relativePosition[0], windmillTowerBase, relativePosition[2]]}
-              userLocation={userLocation}
-            />
-          </group>
-        );
-      })}
-    </>
-  );
-}
-
 export function MobileARScene({ windmills, userLocation }: MobileARSceneProps) {
-  const { orientation, isSupported, hasPermission, error, requestPermission } = useDeviceOrientation();
-  const [videoTexture, setVideoTexture] = useState<VideoTexture | undefined>();
-  const [cameraError, setCameraError] = useState<string | null>(null);
-  const initialCameraPosition: [number, number, number] = [0, 1.7, 0]; // User eye height
-
-  // Initialize camera feed
-  useEffect(() => {
-    if (!hasPermission) return;
-
-    const initCamera = async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: 'environment', // Use back camera
-            width: { ideal: 1920 },
-            height: { ideal: 1080 },
-          },
-        });
-
-        const video = document.createElement('video');
-        video.srcObject = stream;
-        video.play();
-        
-        video.onloadedmetadata = () => {
-          const texture = new VideoTexture(video);
-          texture.needsUpdate = true;
-          setVideoTexture(texture);
-        };
-      } catch (err) {
-        console.error('Camera access failed:', err);
-        setCameraError('Camera access failed. AR mode will work without camera background.');
-      }
-    };
-
-    initCamera();
-
-    return () => {
-      if (videoTexture) {
-        const video = videoTexture.image as HTMLVideoElement;
-        if (video.srcObject) {
-          const stream = video.srcObject as MediaStream;
-          stream.getTracks().forEach(track => track.stop());
-        }
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasPermission]);
-
-  // Show permission UI if needed
-  if (!hasPermission && isSupported) {
-    return (
-      <div className="w-full h-screen bg-black flex items-center justify-center">
-        <div className="text-center p-6 bg-white/10 rounded-lg backdrop-blur-sm">
-          <h2 className="text-white text-xl font-bold mb-4">Enable AR Mode</h2>
-          <p className="text-white/80 mb-4 text-sm">
-            Allow device orientation access to use your phone like AR glasses
-          </p>
-          {error && (
-            <p className="text-red-300 mb-4 text-sm">
-              {error}
-            </p>
-          )}
-          <button
-            onClick={requestPermission}
-            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium"
-          >
-            Enable Device Orientation
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Show error if not supported
-  if (!isSupported) {
-    return (
-      <div className="w-full h-screen bg-black flex items-center justify-center">
-        <div className="text-center p-6 bg-white/10 rounded-lg backdrop-blur-sm">
-          <h2 className="text-white text-xl font-bold mb-4">AR Not Supported</h2>
-          <p className="text-white/80 text-sm">
-            Device orientation is not supported on this device or browser
-          </p>
-        </div>
-      </div>
-    );
-  }
+  const { permission, requestPermission, error, isSupported } = useDeviceOrientation();
+  const [arEnabled, setArEnabled] = useState(false);
+  
+  const initialCameraPosition: [number, number, number] = [0, 1.6, 0];
+  
+  const handleEnableAR = async () => {
+    if (permission === 'not-requested') {
+      await requestPermission();
+    }
+    setArEnabled(true);
+  };
 
   return (
-    <div className="w-full h-screen">
+    <div className="w-full h-screen relative">
       <Canvas
         shadows
         camera={{ 
@@ -362,41 +38,92 @@ export function MobileARScene({ windmills, userLocation }: MobileARSceneProps) {
         gl={{ 
           antialias: true,
           powerPreference: "high-performance",
-          alpha: !videoTexture // Enable transparency only when no camera background
+          alpha: false // Opaque background for AR
         }}
       >
-        <ARContent 
+        {/* AR Camera Controller - replaces VR headset tracking */}
+        <ARCameraController enableControls={arEnabled} />
+        
+        {/* Shared scene content - same as VR */}
+        <SharedSceneContent 
           windmills={windmills} 
-          userLocation={userLocation} 
-          orientation={orientation}
-          videoTexture={videoTexture}
+          userLocation={userLocation}
+          showCompass={true}
+          showMeasurementPoles={true}
         />
       </Canvas>
       
+      {/* AR Mode UI Overlay */}
       <div className="absolute top-4 left-4 z-10 bg-black/75 text-white p-4 rounded-lg max-w-sm">
-        <h2 className="text-lg font-bold mb-2">📱 AR Mode Active</h2>
-        <p className="text-sm mb-1">Move your device to look around</p>
-        <p className="text-sm mb-1">Location: {userLocation.latitude.toFixed(6)}, {userLocation.longitude.toFixed(6)}</p>
-        <p className="text-xs text-green-300 mb-1">✓ Windmills positioned in real world</p>
-        <p className="text-xs text-blue-300 mb-1">🧭 Compass shows device orientation</p>
-        {videoTexture && (
-          <p className="text-xs text-yellow-300 mb-1">📷 Camera background active</p>
-        )}
-        {cameraError && (
-          <p className="text-xs text-orange-300 mb-1">⚠️ {cameraError}</p>
-        )}
-        <div className="text-xs text-gray-300 mt-2">
-          {orientation.alpha !== null && (
-            <div>Heading: {Math.round(orientation.alpha || 0)}°</div>
+        <h2 className="text-lg font-bold mb-2">📱 AR Mode</h2>
+        <p className="text-sm mb-1">Hold your phone up and move around to look at windmills</p>
+        <p className="text-sm mb-1">Your location: {userLocation.latitude.toFixed(6)}, {userLocation.longitude.toFixed(6)}</p>
+        <p className="text-xs text-green-300 mb-1">✓ Windmills stay in fixed world positions</p>
+        <p className="text-xs text-blue-300 mb-1">🧭 Compass shows your real-world orientation</p>
+        <p className="text-xs text-purple-300 mb-1">🔄 Works in portrait or landscape</p>
+        <p className="text-xs text-gray-300">Spatial audio enabled - wind turbine sounds based on distance</p>
+        
+        {/* AR Control Status */}
+        <div className="mt-3 p-2 border border-white/20 rounded">
+          {!isSupported && (
+            <p className="text-xs text-red-300">❌ Device orientation not supported</p>
           )}
-          {orientation.beta !== null && (
-            <div>Tilt: {Math.round(orientation.beta || 0)}°</div>
+          
+          {isSupported && permission === 'not-requested' && (
+            <button
+              onClick={handleEnableAR}
+              className="w-full px-3 py-2 bg-green-600 hover:bg-green-700 rounded text-sm"
+            >
+              🎯 Enable AR Tracking
+            </button>
           )}
-          {orientation.gamma !== null && (
-            <div>Roll: {Math.round(orientation.gamma || 0)}°</div>
+          
+          {isSupported && permission === 'denied' && (
+            <div>
+              <p className="text-xs text-red-300 mb-2">❌ Orientation permission denied</p>
+              <button
+                onClick={requestPermission}
+                className="w-full px-3 py-2 bg-yellow-600 hover:bg-yellow-700 rounded text-sm"
+              >
+                🔄 Request Permission Again
+              </button>
+            </div>
+          )}
+          
+          {isSupported && permission === 'granted' && !arEnabled && (
+            <button
+              onClick={() => setArEnabled(true)}
+              className="w-full px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm"
+            >
+              ▶️ Start AR Mode
+            </button>
+          )}
+          
+          {isSupported && permission === 'granted' && arEnabled && (
+            <div className="text-center">
+              <p className="text-xs text-green-300 mb-2">✅ AR Mode Active</p>
+              <button
+                onClick={() => setArEnabled(false)}
+                className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-xs"
+              >
+                ⏸️ Pause AR
+              </button>
+            </div>
+          )}
+          
+          {error && (
+            <p className="text-xs text-red-300 mt-1">Error: {error}</p>
           )}
         </div>
       </div>
+      
+      {/* AR Instructions */}
+      {arEnabled && (
+        <div className="absolute bottom-4 left-4 right-4 z-10 bg-black/75 text-white p-3 rounded-lg text-center">
+          <p className="text-sm font-semibold">🎯 AR Active</p>
+          <p className="text-xs">Move your phone to look around • Windmills appear at real GPS positions</p>
+        </div>
+      )}
     </div>
   );
 }

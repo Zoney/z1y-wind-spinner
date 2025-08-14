@@ -7,8 +7,7 @@ import { useEffect, useState } from 'react';
 import { WindmillWithAudio } from './WindmillWithAudio';
 import { VRCompass } from './VRCompass';
 import { WindmillConfig, UserLocation } from '@/types/windmill';
-import { convertGPSToFixedWorld, getUserOffsetFromReference } from '@/utils/coordinates';
-import { grimstadUserLocation } from '@/data/windmill-config';
+import { convertGPSToLocal, getUserOffsetFromReference } from '@/utils/coordinates';
 
 interface ImmersiveVRSceneProps {
   windmills: WindmillConfig[];
@@ -111,20 +110,20 @@ function VRContent({ windmills, userLocation }: ImmersiveVRSceneProps) {
             <meshStandardMaterial color="#006994" transparent opacity={0.6} />
           </mesh>
         )}
+        
+        {/* Wind turbines positioned relative to user */}
+        {windmills.map((windmill) => {
+          const relativePosition = convertGPSToLocal(windmill.position, userLocation);
+          return (
+            <WindmillWithAudio
+              key={windmill.id}
+              config={windmill}
+              position={relativePosition}
+              userLocation={userLocation}
+            />
+          );
+        })}
       </group>
-      
-      {/* Wind turbines in fixed world positions */}
-      {windmills.map((windmill) => {
-        const worldPosition = convertGPSToFixedWorld(windmill.position);
-        return (
-          <WindmillWithAudio
-            key={windmill.id}
-            config={windmill}
-            position={worldPosition}
-            userLocation={grimstadUserLocation}
-          />
-        );
-      })}
     </>
   );
 }

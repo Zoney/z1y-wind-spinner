@@ -7,8 +7,7 @@ import { Sky, Environment, Stars } from '@react-three/drei';
 import { WindmillWithAudio } from './WindmillWithAudio';
 import { VRCompass } from './VRCompass';
 import { WindmillConfig, UserLocation } from '@/types/windmill';
-import { convertGPSToFixedWorld, getUserOffsetFromReference } from '@/utils/coordinates';
-import { grimstadUserLocation } from '@/data/windmill-config';
+import { convertGPSToLocal, getUserOffsetFromReference } from '@/utils/coordinates';
 import { useDeviceOrientation } from '@/hooks/useDeviceOrientation';
 
 interface MobileARSceneProps {
@@ -122,20 +121,20 @@ function ARContent({ windmills, userLocation, orientation, videoTexture }: Mobil
             opacity={videoTexture ? 0.05 : 0.1} 
           />
         </mesh>
+        
+        {/* Wind turbines positioned relative to user */}
+        {windmills.map((windmill) => {
+          const relativePosition = convertGPSToLocal(windmill.position, userLocation);
+          return (
+            <WindmillWithAudio
+              key={windmill.id}
+              config={windmill}
+              position={relativePosition}
+              userLocation={userLocation}
+            />
+          );
+        })}
       </group>
-      
-      {/* Wind turbines in fixed world positions */}
-      {windmills.map((windmill) => {
-        const worldPosition = convertGPSToFixedWorld(windmill.position);
-        return (
-          <WindmillWithAudio
-            key={windmill.id}
-            config={windmill}
-            position={worldPosition}
-            userLocation={grimstadUserLocation}
-          />
-        );
-      })}
     </>
   );
 }

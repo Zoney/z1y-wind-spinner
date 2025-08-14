@@ -51,25 +51,37 @@ export function WindmillWithAudio({ config, position, userLocation }: WindmillWi
 
   return (
     <group ref={groupRef} position={position}>
-      {/* Tower */}
+      {/* Tower - Enhanced for AR visibility */}
       <mesh position={[0, config.height / 2, 0]}>
         <cylinderGeometry args={[towerRadius, towerRadius * 1.5, config.height, 16]} />
-        <meshStandardMaterial color="#e8e8e8" />
+        <meshStandardMaterial 
+          color="#ffffff" 
+          emissive="#333333"
+          emissiveIntensity={0.1}
+        />
       </mesh>
       
-      {/* Nacelle */}
+      {/* Nacelle - Enhanced for AR visibility */}
       <mesh position={[0, config.height + nacelleHeight / 2, 0]}>
         <boxGeometry args={[nacelleWidth, nacelleHeight, nacelleWidth / 2]} />
-        <meshStandardMaterial color="#f0f0f0" />
+        <meshStandardMaterial 
+          color="#ffffff" 
+          emissive="#444444"
+          emissiveIntensity={0.1}
+        />
       </mesh>
       
-      {/* Blades */}
+      {/* Blades - Enhanced for AR visibility */}
       <group ref={bladesRef} position={[0, config.height + nacelleHeight, nacelleWidth / 4]}>
         {[0, 120, 240].map((angle, index) => (
           <mesh key={index} rotation={[0, 0, (angle * Math.PI) / 180]}>
             <mesh position={[0, config.bladeLength / 2, 0]}>
               <boxGeometry args={[config.bladeWidth, config.bladeLength, 0.1]} />
-              <meshStandardMaterial color="#ffffff" />
+              <meshStandardMaterial 
+                color="#ffffff" 
+                emissive="#222222"
+                emissiveIntensity={0.15}
+              />
             </mesh>
           </mesh>
         ))}

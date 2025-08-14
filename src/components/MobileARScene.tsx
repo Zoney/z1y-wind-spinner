@@ -74,9 +74,11 @@ function ARContent({ windmills, userLocation, orientation, videoTexture }: Mobil
       
       {/* Main scene group - user is at origin */}
       <group position={[0, 0, 0]}>
-        {/* Lighting */}
-        <ambientLight intensity={0.4} />
-        <directionalLight position={[10, 10, 5]} intensity={0.6} castShadow />
+        {/* Enhanced lighting for AR visibility */}
+        <ambientLight intensity={0.8} />
+        <directionalLight position={[10, 10, 5]} intensity={1.2} castShadow />
+        <directionalLight position={[-10, 10, -5]} intensity={0.8} />
+        <directionalLight position={[0, 20, 0]} intensity={0.6} />
         
         {/* Environment - very subtle for AR overlay */}
         {!videoTexture && (
@@ -112,21 +114,49 @@ function ARContent({ windmills, userLocation, orientation, videoTexture }: Mobil
         
       </group>
       
-      {/* Debug: Reference axes */}
+      {/* Debug: Reference axes and markers */}
       <group>
+        {/* Close debug markers to test visibility */}
+        <mesh position={[10, 5, 0]}>
+          <sphereGeometry args={[2, 8, 8]} />
+          <meshBasicMaterial color="red" />
+        </mesh>
+        <mesh position={[0, 5, -10]}>
+          <sphereGeometry args={[2, 8, 8]} />
+          <meshBasicMaterial color="blue" />
+        </mesh>
+        <mesh position={[-10, 5, 0]}>
+          <sphereGeometry args={[2, 8, 8]} />
+          <meshBasicMaterial color="green" />
+        </mesh>
+        
+        {/* Distance markers every 100m */}
+        {[100, 200, 500, 1000, 2000].map(distance => (
+          <group key={distance}>
+            <mesh position={[distance, 10, 0]}>
+              <sphereGeometry args={[5, 8, 8]} />
+              <meshBasicMaterial color="yellow" />
+            </mesh>
+            <mesh position={[0, 10, -distance]}>
+              <sphereGeometry args={[5, 8, 8]} />
+              <meshBasicMaterial color="cyan" />
+            </mesh>
+          </group>
+        ))}
+        
         {/* X axis (red) - pointing east */}
-        <mesh position={[50, 1, 0]}>
-          <boxGeometry args={[100, 2, 2]} />
+        <mesh position={[25, 1, 0]}>
+          <boxGeometry args={[50, 2, 2]} />
           <meshBasicMaterial color="red" />
         </mesh>
         {/* Z axis (blue) - pointing north */}
-        <mesh position={[0, 1, -50]}>
-          <boxGeometry args={[2, 2, 100]} />
+        <mesh position={[0, 1, -25]}>
+          <boxGeometry args={[2, 2, 50]} />
           <meshBasicMaterial color="blue" />
         </mesh>
         {/* Y axis (green) - pointing up */}
-        <mesh position={[0, 50, 0]}>
-          <boxGeometry args={[2, 100, 2]} />
+        <mesh position={[0, 25, 0]}>
+          <boxGeometry args={[2, 50, 2]} />
           <meshBasicMaterial color="green" />
         </mesh>
       </group>
@@ -139,18 +169,26 @@ function ARContent({ windmills, userLocation, orientation, videoTexture }: Mobil
         
         return (
           <group key={windmill.id}>
-            {/* Debug marker - bright sphere at windmill base */}
-            <mesh position={[relativePosition[0], relativePosition[1] + 5, relativePosition[2]]}>
-              <sphereGeometry args={[10, 8, 8]} />
-              <meshBasicMaterial color="yellow" />
+            {/* Debug marker - much larger and brighter for AR */}
+            <mesh position={[relativePosition[0], relativePosition[1] + 20, relativePosition[2]]}>
+              <sphereGeometry args={[20, 8, 8]} />
+              <meshStandardMaterial color="magenta" emissive="magenta" emissiveIntensity={0.3} />
             </mesh>
             
-            {/* Actual windmill */}
-            <WindmillWithAudio
-              config={windmill}
-              position={relativePosition}
-              userLocation={userLocation}
-            />
+            {/* Tall marker stick for visibility */}
+            <mesh position={[relativePosition[0], relativePosition[1] + 75, relativePosition[2]]}>
+              <boxGeometry args={[5, 150, 5]} />
+              <meshStandardMaterial color="orange" emissive="orange" emissiveIntensity={0.2} />
+            </mesh>
+            
+            {/* Actual windmill - temporarily scaled up for AR testing */}
+            <group scale={[2, 2, 2]}>
+              <WindmillWithAudio
+                config={windmill}
+                position={relativePosition}
+                userLocation={userLocation}
+              />
+            </group>
           </group>
         );
       })}
@@ -252,7 +290,9 @@ export function MobileARScene({ windmills, userLocation }: MobileARSceneProps) {
         shadows
         camera={{ 
           position: initialCameraPosition, 
-          fov: 75 
+          fov: 75,
+          near: 0.1,
+          far: 50000 // Extended far plane for distant windmills
         }}
         gl={{ 
           antialias: true,

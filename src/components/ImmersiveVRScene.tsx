@@ -169,7 +169,9 @@ export function ImmersiveVRScene({ windmills, userLocation }: ImmersiveVRScenePr
         shadows
         camera={{ 
           position: initialCameraPosition, 
-          fov: 75 
+          fov: 75,
+          near: 0.1,
+          far: 50000 // Extended far plane for distant windmills
         }}
         gl={{ 
           antialias: true,

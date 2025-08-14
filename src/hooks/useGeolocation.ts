@@ -28,7 +28,7 @@ export function useGeolocation(): GeolocationState {
     }
 
     // Check if we're in an XR session which might restrict geolocation
-    const isInXR = 'xr' in navigator && (window as any).navigator?.xr?.session;
+    const isInXR = 'xr' in navigator && (navigator as typeof navigator & { xr?: { session?: unknown } }).xr?.session;
     if (isInXR) {
       console.log('XR session detected - requesting geolocation permissions explicitly');
     }

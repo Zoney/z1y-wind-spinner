@@ -35,7 +35,7 @@ export function useDeviceOrientation(): DeviceOrientationState {
     return isSupported;
   }, []);
 
-  const requestPermission = useCallback(async () => {
+  const requestPermission = useCallback(async (): Promise<void> => {
     if (!state.isSupported) {
       setState(prev => ({ ...prev, error: 'Device orientation is not supported' }));
       return;
@@ -76,11 +76,6 @@ export function useDeviceOrientation(): DeviceOrientationState {
       };
 
       window.addEventListener('deviceorientation', handleOrientation);
-
-      // Cleanup function
-      return () => {
-        window.removeEventListener('deviceorientation', handleOrientation);
-      };
     } catch (error) {
       console.error('Error requesting device orientation permission:', error);
       setState(prev => ({ 

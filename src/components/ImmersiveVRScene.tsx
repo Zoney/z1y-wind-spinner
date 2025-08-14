@@ -57,7 +57,7 @@ function VRResetButton({ onReset }: { onReset: () => void }) {
   const dragStartPos = useRef<THREE.Vector3 | null>(null);
   const dragOffset = useRef<THREE.Vector3>(new THREE.Vector3());
 
-  const handlePointerDown = (event: any) => {
+  const handlePointerDown = (event: { button: number; point: THREE.Vector3; stopPropagation: () => void }) => {
     if (event.button === 0) { // Primary button (trigger)
       setIsDragging(true);
       dragStartPos.current = event.point.clone();
@@ -70,7 +70,7 @@ function VRResetButton({ onReset }: { onReset: () => void }) {
     }
   };
 
-  const handlePointerUp = (event: any) => {
+  const handlePointerUp = (event: { point?: THREE.Vector3 }) => {
     if (isDragging) {
       setIsDragging(false);
       dragStartPos.current = null;
@@ -85,7 +85,7 @@ function VRResetButton({ onReset }: { onReset: () => void }) {
     }
   };
 
-  const handlePointerMove = (event: any) => {
+  const handlePointerMove = (event: { point?: THREE.Vector3 }) => {
     if (isDragging && event.point) {
       const newPosition: [number, number, number] = [
         event.point.x - dragOffset.current.x,

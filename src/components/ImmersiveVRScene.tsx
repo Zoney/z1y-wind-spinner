@@ -2,9 +2,9 @@
 
 import { Canvas, useThree } from '@react-three/fiber';
 import { VRButton, XR, createXRStore, useXR } from '@react-three/xr';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
+import * as THREE from 'three';
 import { WindmillWithAudio } from './WindmillWithAudio';
-import { VRCompass } from './VRCompass';
 import { WindmillConfig, UserLocation } from '@/types/windmill';
 import { convertGPSToLocal, convertGPSToFixedWorld, getUserOffsetFromReference } from '@/utils/coordinates';
 
@@ -50,17 +50,127 @@ function PassthroughManager() {
   return null;
 }
 
+function VRResetButton({ onReset }: { onReset: () => void }) {
+  const [hovered, setHovered] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [position, setPosition] = useState<[number, number, number]>([0, 1.2, -1.5]);
+  const meshRef = useRef<THREE.Mesh>(null);
+  const dragStartPos = useRef<THREE.Vector3 | null>(null);
+  const dragOffset = useRef<THREE.Vector3>(new THREE.Vector3());
+
+  const handlePointerDown = (event: any) => {
+    if (event.button === 0) { // Primary button (trigger)
+      setIsDragging(true);
+      dragStartPos.current = event.point.clone();
+      dragOffset.current.set(
+        event.point.x - position[0],
+        event.point.y - position[1], 
+        event.point.z - position[2]
+      );
+      event.stopPropagation();
+    }
+  };
+
+  const handlePointerUp = (event: any) => {
+    if (isDragging) {
+      setIsDragging(false);
+      dragStartPos.current = null;
+      
+      // If we didn't drag much, treat it as a click
+      if (event.point && dragStartPos.current) {
+        const dragDistance = event.point.distanceTo(dragStartPos.current);
+        if (dragDistance < 0.1) { // Less than 10cm of movement
+          onReset();
+        }
+      }
+    }
+  };
+
+  const handlePointerMove = (event: any) => {
+    if (isDragging && event.point) {
+      const newPosition: [number, number, number] = [
+        event.point.x - dragOffset.current.x,
+        event.point.y - dragOffset.current.y,
+        event.point.z - dragOffset.current.z
+      ];
+      setPosition(newPosition);
+    }
+  };
+
+  return (
+    <group position={position}>
+      {/* Reset button - draggable red button */}
+      <mesh
+        ref={meshRef}
+        onPointerEnter={() => setHovered(true)}
+        onPointerLeave={() => setHovered(false)}
+        onPointerDown={handlePointerDown}
+        onPointerUp={handlePointerUp}
+        onPointerMove={handlePointerMove}
+      >
+        <cylinderGeometry args={[0.15, 0.15, 0.05, 16]} />
+        <meshBasicMaterial color={isDragging ? "#ffaa33" : hovered ? "#ff6666" : "#ff3333"} />
+      </mesh>
+      
+      {/* Reset text above button */}
+      <mesh position={[0, 0.3, 0]}>
+        <planeGeometry args={[0.8, 0.2]} />
+        <meshBasicMaterial color="white" transparent opacity={0.8} />
+      </mesh>
+      
+      {/* Glow effect when hovered or dragging */}
+      {(hovered || isDragging) && (
+        <mesh>
+          <cylinderGeometry args={[0.2, 0.2, 0.02, 16]} />
+          <meshBasicMaterial 
+            color={isDragging ? "#ffcc88" : "#ffaaaa"} 
+            transparent 
+            opacity={0.3} 
+          />
+        </mesh>
+      )}
+      
+      {/* Drag indicator when dragging */}
+      {isDragging && (
+        <mesh position={[0, -0.3, 0]}>
+          <planeGeometry args={[0.6, 0.15]} />
+          <meshBasicMaterial color="yellow" transparent opacity={0.6} />
+        </mesh>
+      )}
+    </group>
+  );
+}
+
 function VRContent({ windmills, userLocation }: ImmersiveVRSceneProps) {
   // Calculate user's offset from reference point in fixed world coordinates
   const userOffset = getUserOffsetFromReference(userLocation);
+  
+  const handleReset = () => {
+    // Reset the XR session to recalibrate the headset's tracking space
+    const xrSession = (window as any).navigator?.xr?.session;
+    if (xrSession) {
+      try {
+        // Request a new reference space to reset tracking
+        xrSession.requestReferenceSpace('local-floor').then((refSpace: any) => {
+          console.log('VR tracking space reset successfully');
+        });
+      } catch (error) {
+        console.log('VR reset not supported:', error);
+      }
+    }
+    
+    // Force a re-render by triggering a state change
+    window.location.reload();
+  };
   
   return (
     <>
       {/* Passthrough manager for AR headsets */}
       <PassthroughManager />
       
-      {/* VR Compass for orientation */}
-      <VRCompass />
+      {/* VR Reset Button */}
+      <VRResetButton onReset={handleReset} />
+      
       
       {/* Main scene group - user is at origin, but everything else is positioned in fixed world coordinates */}
       <group position={[0, 0, 0]}>

@@ -11,7 +11,7 @@ interface ARCameraControllerProps {
 
 export function ARCameraController({ enableControls = true }: ARCameraControllerProps) {
   const { camera } = useThree();
-  const { orientation, permission, requestPermission } = useDeviceOrientation();
+  const { orientation, permission } = useDeviceOrientation();
   const quaternion = useRef(new THREE.Quaternion());
   const euler = useRef(new THREE.Euler());
   
@@ -32,12 +32,7 @@ export function ARCameraController({ enableControls = true }: ARCameraController
     };
   }, []);
 
-  useEffect(() => {
-    // Request permission on mount if not already requested
-    if (enableControls && permission === 'not-requested') {
-      requestPermission();
-    }
-  }, [enableControls, permission, requestPermission]);
+  // Remove automatic permission request - let parent component handle this
 
   useFrame(() => {
     if (!enableControls || !orientation || permission !== 'granted') return;
@@ -70,24 +65,7 @@ export function ARCameraController({ enableControls = true }: ARCameraController
     camera.position.set(0, 1.6, 0); // Standard eye height
   });
 
-  // Auto-request permission on first touch/click (for iOS)
-  useEffect(() => {
-    if (!enableControls || permission !== 'not-requested') return;
-
-    const handleUserInteraction = () => {
-      requestPermission();
-      document.removeEventListener('touchstart', handleUserInteraction);
-      document.removeEventListener('click', handleUserInteraction);
-    };
-
-    document.addEventListener('touchstart', handleUserInteraction);
-    document.addEventListener('click', handleUserInteraction);
-
-    return () => {
-      document.removeEventListener('touchstart', handleUserInteraction);
-      document.removeEventListener('click', handleUserInteraction);
-    };
-  }, [enableControls, permission, requestPermission]);
+  // Remove auto-request on interaction - let parent component handle this
 
   return null; // This component only controls the camera, doesn't render anything
 }

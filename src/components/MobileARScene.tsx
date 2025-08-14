@@ -77,7 +77,7 @@ export function MobileARScene({ windmills, userLocation }: MobileARSceneProps) {
         className="absolute inset-0 z-20"
       >
         {/* AR Camera Controller - replaces VR headset tracking */}
-        <ARCameraController enableControls={arEnabled} />
+        <ARCameraController enableControls={permission === 'granted'} />
         
         {/* Shared scene content - same as VR */}
         <SharedSceneContent 
@@ -134,15 +134,27 @@ export function MobileARScene({ windmills, userLocation }: MobileARSceneProps) {
             </button>
           )}
           
-          {isSupported && permission === 'granted' && arEnabled && (
+          {isSupported && permission === 'granted' && (
             <div className="text-center">
-              <p className="text-xs text-green-300 mb-2">✅ AR Mode Active</p>
-              <button
-                onClick={() => setArEnabled(false)}
-                className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-xs"
-              >
-                ⏸️ Pause AR
-              </button>
+              <p className="text-xs text-green-300 mb-2">✅ Device Tracking Active</p>
+              {arEnabled ? (
+                <div>
+                  <p className="text-xs text-blue-300 mb-2">📹 Camera + Tracking Active</p>
+                  <button
+                    onClick={() => setArEnabled(false)}
+                    className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-xs"
+                  >
+                    ⏸️ Stop Camera
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={handleEnableAR}
+                  className="w-full px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm"
+                >
+                  📹 Enable Camera
+                </button>
+              )}
             </div>
           )}
           
@@ -153,10 +165,17 @@ export function MobileARScene({ windmills, userLocation }: MobileARSceneProps) {
       </div>
       
       {/* AR Instructions */}
-      {arEnabled && (
+      {permission === 'granted' && (
         <div className="absolute bottom-4 left-4 right-4 z-10 bg-black/75 text-white p-3 rounded-lg text-center">
-          <p className="text-sm font-semibold">🎯 AR Active</p>
-          <p className="text-xs">Move your phone to look around • Windmills appear at real GPS positions</p>
+          <p className="text-sm font-semibold">
+            {arEnabled ? '🎯 Full AR Active' : '🧞 Device Tracking Active'}
+          </p>
+          <p className="text-xs">
+            {arEnabled 
+              ? 'Move your phone to look around • Camera + tracking active' 
+              : 'Move your phone to look around • Enable camera for full AR'
+            }
+          </p>
         </div>
       )}
     </div>

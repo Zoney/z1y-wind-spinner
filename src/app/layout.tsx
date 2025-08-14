@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -17,7 +17,6 @@ export const metadata: Metadata = {
   description: "Immersive 3D visualization of Grimstad Wind Farm with VR support, real-time controls, and geolocation features",
   keywords: ["wind farm", "VR", "3D visualization", "Grimstad", "renewable energy", "WebXR", "Three.js"],
   authors: [{ name: "Wind Farm VR Team" }],
-  viewport: "width=device-width, initial-scale=1",
   robots: "index, follow",
   openGraph: {
     title: "Grimstad Wind Farm VR | Interactive 3D Visualization",
@@ -25,6 +24,11 @@ export const metadata: Metadata = {
     type: "website",
     siteName: "Grimstad Wind Farm VR",
   },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({

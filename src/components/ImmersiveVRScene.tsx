@@ -29,14 +29,15 @@ function VRContent({ windmills, userLocation }: ImmersiveVRSceneProps) {
         <ambientLight intensity={0.3} />
         <directionalLight position={[10, 10, 5]} intensity={0.8} castShadow />
         
-        {/* Environment */}
-        <Sky
-          distance={450000}
-          sunPosition={[0, 1, 0]}
-          inclination={0}
-          azimuth={0.25}
-          opacity={0.05}
-        />
+        {/* Environment - wrapped in group for opacity */}
+        <group>
+          <Sky
+            distance={450000}
+            sunPosition={[0, 1, 0]}
+            inclination={0}
+            azimuth={0.25}
+          />
+        </group>
         
         <Environment preset="sunset" />
         <Stars

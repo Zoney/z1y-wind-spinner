@@ -92,11 +92,6 @@ export function VRCompass() {
         W
       </Text>
       
-      {/* Compass needle pointing north */}
-      <mesh position={[0, 0, 0.04]} rotation={[0, 0, -heading]}>
-        <coneGeometry args={[0.02, 0.08, 4]} />
-        <meshBasicMaterial color="#ff0000" />
-      </mesh>
       
       {/* Current direction display */}
       <Text

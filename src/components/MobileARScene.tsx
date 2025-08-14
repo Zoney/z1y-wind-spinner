@@ -1,8 +1,8 @@
 'use client';
 
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { useRef, useEffect } from 'react';
-import { PerspectiveCamera } from 'three';
+import { useRef, useEffect, useState } from 'react';
+import { PerspectiveCamera, VideoTexture } from 'three';
 import { Sky, Environment, Stars } from '@react-three/drei';
 import { WindmillWithAudio } from './WindmillWithAudio';
 import { VRCompass } from './VRCompass';
@@ -23,27 +23,48 @@ interface ARCameraProps {
     gamma: number | null;
     absolute: boolean;
   };
+  videoTexture?: VideoTexture;
 }
 
-function ARCamera({ orientation }: ARCameraProps) {
-  const { camera } = useThree();
+function ARCamera({ orientation, videoTexture }: ARCameraProps) {
+  const { camera, scene } = useThree();
   const cameraRef = useRef<PerspectiveCamera>(null);
 
   useFrame(() => {
-    if (!cameraRef.current || !orientation.alpha || !orientation.beta || !orientation.gamma) return;
+    if (!cameraRef.current) return;
+    
+    // Only apply orientation if we have valid data
+    if (orientation.alpha !== null && orientation.beta !== null && orientation.gamma !== null) {
+      // Convert device orientation to radians
+      const alpha = (orientation.alpha * Math.PI) / 180; // Z-axis (compass heading)
+      const beta = (orientation.beta * Math.PI) / 180;   // X-axis (front/back tilt)
+      const gamma = (orientation.gamma * Math.PI) / 180; // Y-axis (left/right tilt)
 
-    // Convert device orientation to camera rotation
-    // Note: These calculations may need adjustment based on device orientation
-    const alpha = (orientation.alpha * Math.PI) / 180; // Z-axis (compass)
-    const beta = (orientation.beta * Math.PI) / 180;   // X-axis (tilt forward/back)
-    const gamma = (orientation.gamma * Math.PI) / 180; // Y-axis (tilt left/right)
+      // Improved orientation calculation for mobile devices
+      // Account for device orientation and proper coordinate system
+      const isLandscape = window.screen.orientation?.angle === 90 || window.screen.orientation?.angle === -90;
+      
+      if (isLandscape) {
+        // Landscape mode adjustments
+        cameraRef.current.rotation.set(
+          -gamma,              // X rotation (device tilt becomes camera pitch)
+          alpha + Math.PI,     // Y rotation (compass with 180° offset)
+          beta - Math.PI / 2   // Z rotation (device roll)
+        );
+      } else {
+        // Portrait mode (default)
+        cameraRef.current.rotation.set(
+          beta - Math.PI / 2,  // X rotation (device tilt, adjusted for upright)
+          alpha,               // Y rotation (compass heading)
+          -gamma               // Z rotation (device roll compensation)
+        );
+      }
+    }
 
-    // Apply rotations to camera (order matters for proper orientation)
-    cameraRef.current.rotation.set(
-      beta - Math.PI / 2,  // Adjust for device held upright
-      alpha,               // Compass heading
-      -gamma              // Roll compensation
-    );
+    // Update background with camera feed
+    if (videoTexture && scene.background !== videoTexture) {
+      scene.background = videoTexture;
+    }
   });
 
   useEffect(() => {
@@ -53,13 +74,13 @@ function ARCamera({ orientation }: ARCameraProps) {
   return null;
 }
 
-function ARContent({ windmills, userLocation, orientation }: MobileARSceneProps & { orientation: ARCameraProps['orientation'] }) {
+function ARContent({ windmills, userLocation, orientation, videoTexture }: MobileARSceneProps & { orientation: ARCameraProps['orientation']; videoTexture?: VideoTexture }) {
   const userOffset = getUserOffsetFromReference(userLocation);
   
   return (
     <>
       {/* AR Camera controls */}
-      <ARCamera orientation={orientation} />
+      <ARCamera orientation={orientation} videoTexture={videoTexture} />
       
       {/* VR Compass for orientation */}
       <VRCompass />
@@ -70,31 +91,36 @@ function ARContent({ windmills, userLocation, orientation }: MobileARSceneProps 
         <ambientLight intensity={0.4} />
         <directionalLight position={[10, 10, 5]} intensity={0.6} castShadow />
         
-        {/* Environment - very subtle for AR */}
-        <group>
-          <Sky
-            distance={450000}
-            sunPosition={[0, 1, 0]}
-            inclination={0}
-            azimuth={0.25}
-          />
-        </group>
+        {/* Environment - very subtle for AR overlay */}
+        {!videoTexture && (
+          <group>
+            <Sky
+              distance={450000}
+              sunPosition={[0, 1, 0]}
+              inclination={0}
+              azimuth={0.25}
+            />
+            <Environment preset="sunset" />
+            <Stars
+              radius={100}
+              depth={50}
+              count={3000}
+              factor={2}
+              saturation={0}
+              fade
+              speed={1}
+            />
+          </group>
+        )}
         
-        <Environment preset="sunset" />
-        <Stars
-          radius={100}
-          depth={50}
-          count={3000}
-          factor={2}
-          saturation={0}
-          fade
-          speed={1}
-        />
-        
-        {/* Ground plane - very transparent for AR */}
+        {/* Ground plane - very transparent for AR overlay */}
         <mesh position={[0, -50, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
           <planeGeometry args={[10000, 10000]} />
-          <meshStandardMaterial color="#2d5016" transparent opacity={0.1} />
+          <meshStandardMaterial 
+            color="#2d5016" 
+            transparent 
+            opacity={videoTexture ? 0.05 : 0.1} 
+          />
         </mesh>
       </group>
       
@@ -116,12 +142,57 @@ function ARContent({ windmills, userLocation, orientation }: MobileARSceneProps 
 
 export function MobileARScene({ windmills, userLocation }: MobileARSceneProps) {
   const { orientation, isSupported, hasPermission, error, requestPermission } = useDeviceOrientation();
+  const [videoTexture, setVideoTexture] = useState<VideoTexture | undefined>();
+  const [cameraError, setCameraError] = useState<string | null>(null);
   const userOffset = getUserOffsetFromReference(userLocation);
   const initialCameraPosition: [number, number, number] = [
     userOffset[0], 
     userOffset[1] + 1.6, 
     userOffset[2]
   ];
+
+  // Initialize camera feed
+  useEffect(() => {
+    if (!hasPermission) return;
+
+    const initCamera = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: 'environment', // Use back camera
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+          },
+        });
+
+        const video = document.createElement('video');
+        video.srcObject = stream;
+        video.play();
+        
+        video.onloadedmetadata = () => {
+          const texture = new VideoTexture(video);
+          texture.needsUpdate = true;
+          setVideoTexture(texture);
+        };
+      } catch (err) {
+        console.error('Camera access failed:', err);
+        setCameraError('Camera access failed. AR mode will work without camera background.');
+      }
+    };
+
+    initCamera();
+
+    return () => {
+      if (videoTexture) {
+        const video = videoTexture.image as HTMLVideoElement;
+        if (video.srcObject) {
+          const stream = video.srcObject as MediaStream;
+          stream.getTracks().forEach(track => track.stop());
+        }
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasPermission]);
 
   // Show permission UI if needed
   if (!hasPermission && isSupported) {
@@ -173,21 +244,38 @@ export function MobileARScene({ windmills, userLocation }: MobileARSceneProps) {
         gl={{ 
           antialias: true,
           powerPreference: "high-performance",
-          alpha: true // Enable transparency for AR
+          alpha: !videoTexture // Enable transparency only when no camera background
         }}
       >
-        <ARContent windmills={windmills} userLocation={userLocation} orientation={orientation} />
+        <ARContent 
+          windmills={windmills} 
+          userLocation={userLocation} 
+          orientation={orientation}
+          videoTexture={videoTexture}
+        />
       </Canvas>
       
       <div className="absolute top-4 left-4 z-10 bg-black/75 text-white p-4 rounded-lg max-w-sm">
-        <h2 className="text-lg font-bold mb-2">🔍 AR Mode Active</h2>
+        <h2 className="text-lg font-bold mb-2">📱 AR Mode Active</h2>
         <p className="text-sm mb-1">Move your device to look around</p>
         <p className="text-sm mb-1">Location: {userLocation.latitude.toFixed(6)}, {userLocation.longitude.toFixed(6)}</p>
         <p className="text-xs text-green-300 mb-1">✓ Windmills positioned in real world</p>
         <p className="text-xs text-blue-300 mb-1">🧭 Compass shows device orientation</p>
+        {videoTexture && (
+          <p className="text-xs text-yellow-300 mb-1">📷 Camera background active</p>
+        )}
+        {cameraError && (
+          <p className="text-xs text-orange-300 mb-1">⚠️ {cameraError}</p>
+        )}
         <div className="text-xs text-gray-300 mt-2">
           {orientation.alpha !== null && (
             <div>Heading: {Math.round(orientation.alpha || 0)}°</div>
+          )}
+          {orientation.beta !== null && (
+            <div>Tilt: {Math.round(orientation.beta || 0)}°</div>
+          )}
+          {orientation.gamma !== null && (
+            <div>Roll: {Math.round(orientation.gamma || 0)}°</div>
           )}
         </div>
       </div>

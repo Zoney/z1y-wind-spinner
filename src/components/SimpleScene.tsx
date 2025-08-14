@@ -29,11 +29,6 @@ export function SimpleScene({ windmills, userLocation }: SimpleSceneProps) {
         
         <OrbitControls enablePan={true} enableZoom={true} enableRotate={true} />
         
-        {/* Horizon line */}
-        <mesh position={[0, 0, 0]} rotation={[0, 0, 0]}>
-          <torusGeometry args={[50000, 20, 3, 100]} />
-          <meshBasicMaterial color="#666666" />
-        </mesh>
         
         {windmills.map((windmill) => {
           const localPosition = convertGPSToLocal(windmill.position, userLocation);

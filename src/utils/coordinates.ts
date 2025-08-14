@@ -1,4 +1,5 @@
 import { UserLocation } from '@/types/windmill';
+import { grimstadUserLocation } from '@/data/windmill-config';
 
 const EARTH_RADIUS_KM = 6371;
 
@@ -14,6 +15,42 @@ export function convertGPSToLocal(
   const y = gpsCoord.altitude - userLocation.altitude;
   
   return [x, y, z];
+}
+
+export function convertGPSToFixedWorld(
+  gpsCoord: { latitude: number; longitude: number; altitude: number },
+  referenceLocation: UserLocation = grimstadUserLocation
+): [number, number, number] {
+  const deltaLat = (gpsCoord.latitude - referenceLocation.latitude) * Math.PI / 180;
+  const deltaLon = (gpsCoord.longitude - referenceLocation.longitude) * Math.PI / 180;
+  
+  const x = deltaLon * EARTH_RADIUS_KM * 1000 * Math.cos(referenceLocation.latitude * Math.PI / 180);
+  const z = -deltaLat * EARTH_RADIUS_KM * 1000;
+  const y = gpsCoord.altitude - referenceLocation.altitude;
+  
+  return [x, y, z];
+}
+
+export function getUserOffsetFromReference(
+  userLocation: UserLocation,
+  referenceLocation: UserLocation = grimstadUserLocation
+): [number, number, number] {
+  return convertGPSToFixedWorld(userLocation, referenceLocation);
+}
+
+export function getCardinalDirection(angle: number): string {
+  const normalizedAngle = ((angle * 180 / Math.PI) + 360) % 360;
+  
+  if (normalizedAngle >= 337.5 || normalizedAngle < 22.5) return 'N';
+  if (normalizedAngle >= 22.5 && normalizedAngle < 67.5) return 'NE';
+  if (normalizedAngle >= 67.5 && normalizedAngle < 112.5) return 'E';
+  if (normalizedAngle >= 112.5 && normalizedAngle < 157.5) return 'SE';
+  if (normalizedAngle >= 157.5 && normalizedAngle < 202.5) return 'S';
+  if (normalizedAngle >= 202.5 && normalizedAngle < 247.5) return 'SW';
+  if (normalizedAngle >= 247.5 && normalizedAngle < 292.5) return 'W';
+  if (normalizedAngle >= 292.5 && normalizedAngle < 337.5) return 'NW';
+  
+  return 'N';
 }
 
 export function calculateDistance(

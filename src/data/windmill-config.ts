@@ -10,13 +10,13 @@ export const windmillConfigurations: WindmillConfig[] = [
   {
     id: 'turbine-1',
     position: {
-      latitude: 58.29954885820121,
-      longitude: 8.484647620752561,
-      altitude: 85
+      latitude: 58.2956418537468,
+      longitude: 8.451679576883995,
+      altitude: 95
     },
     height: 145,
     bladeWidth: 4,
-    bladeLength: 75,
+    bladeLength: 85,
     rotationSpeed: 1.2,
     noiseLevel: {
       distance100m: 45,
@@ -28,8 +28,8 @@ export const windmillConfigurations: WindmillConfig[] = [
   {
     id: 'turbine-2',
     position: {
-      latitude: 58.29791139657529,
-      longitude: 8.479532573705935,
+      latitude: 58.29403511095341,
+      longitude: 8.461204147246681,
       altitude: 90
     },
     height: 135,
@@ -46,13 +46,13 @@ export const windmillConfigurations: WindmillConfig[] = [
   {
     id: 'turbine-3',
     position: {
-      latitude: 58.296119370609865,
-      longitude: 8.468743939992645,
-      altitude: 95
+      latitude: 58.29513202979918,
+      longitude: 8.456471258887445,
+      altitude: 88
     },
     height: 140,
     bladeWidth: 4,
-    bladeLength: 78,
+    bladeLength: 82,
     rotationSpeed: 1.3,
     noiseLevel: {
       distance100m: 43,
@@ -64,13 +64,13 @@ export const windmillConfigurations: WindmillConfig[] = [
   {
     id: 'turbine-4',
     position: {
-      latitude: 58.294636246016026,
-      longitude: 8.46039524251424,
-      altitude: 88
+      latitude: 58.29500843500893,
+      longitude: 8.468435765485019,
+      altitude: 92
     },
     height: 138,
     bladeWidth: 4,
-    bladeLength: 82,
+    bladeLength: 78,
     rotationSpeed: 1.0,
     noiseLevel: {
       distance100m: 46,
@@ -82,13 +82,13 @@ export const windmillConfigurations: WindmillConfig[] = [
   {
     id: 'turbine-5',
     position: {
-      latitude: 58.30325603855469,
-      longitude: 8.494642540598992,
-      altitude: 92
+      latitude: 58.297001348371005,
+      longitude: 8.481723129077409,
+      altitude: 85
     },
     height: 142,
     bladeWidth: 4,
-    bladeLength: 85,
+    bladeLength: 88,
     rotationSpeed: 1.2,
     noiseLevel: {
       distance100m: 48,
@@ -100,9 +100,9 @@ export const windmillConfigurations: WindmillConfig[] = [
   {
     id: 'turbine-6',
     position: {
-      latitude: 58.301234567890,
-      longitude: 8.472345678901,
-      altitude: 87
+      latitude: 58.29924131082687,
+      longitude: 8.483045986072225,
+      altitude: 90
     },
     height: 145,
     bladeWidth: 4,
@@ -118,13 +118,13 @@ export const windmillConfigurations: WindmillConfig[] = [
   {
     id: 'turbine-7',
     position: {
-      latitude: 58.292345678901,
-      longitude: 8.487654321098,
-      altitude: 84
+      latitude: 58.300137256168284,
+      longitude: 8.48663239874032,
+      altitude: 87
     },
     height: 135,
     bladeWidth: 4,
-    bladeLength: 77,
+    bladeLength: 85,
     rotationSpeed: 1.4,
     noiseLevel: {
       distance100m: 45,
@@ -136,9 +136,9 @@ export const windmillConfigurations: WindmillConfig[] = [
   {
     id: 'turbine-8',
     position: {
-      latitude: 58.297876543210,
-      longitude: 8.465432109876,
-      altitude: 91
+      latitude: 58.29473034520951,
+      longitude: 8.471110876667794,
+      altitude: 93
     },
     height: 140,
     bladeWidth: 4,
@@ -154,13 +154,13 @@ export const windmillConfigurations: WindmillConfig[] = [
   {
     id: 'turbine-9',
     position: {
-      latitude: 58.305432109876,
-      longitude: 8.478901234567,
+      latitude: 58.29948847046915,
+      longitude: 8.484016081572792,
       altitude: 89
     },
     height: 138,
     bladeWidth: 4,
-    bladeLength: 79,
+    bladeLength: 87,
     rotationSpeed: 1.3,
     noiseLevel: {
       distance100m: 47,

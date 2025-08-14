@@ -34,23 +34,29 @@ function ARCamera({ orientation, videoTexture }: ARCameraProps) {
     
     // Only apply orientation if we have valid data
     if (orientation.alpha !== null && orientation.beta !== null && orientation.gamma !== null) {
-      // Convert device orientation to radians
-      const alpha = (orientation.alpha * Math.PI) / 180; // Compass heading
-      const beta = (orientation.beta * Math.PI) / 180;   // Front/back tilt
-      const gamma = (orientation.gamma * Math.PI) / 180; // Left/right tilt
-
-      // AR Camera orientation:
-      // We want the camera to look exactly where the device camera is pointing
-      // Beta: -90° = pointing up, 0° = horizontal, 90° = pointing down
-      // Alpha: compass heading (0° = north, 90° = east, 180° = south, 270° = west)
-      // Gamma: device roll/tilt
+      // Convert device orientation to radians and adjust for proper AR mapping
+      // Device orientation API:
+      // - alpha: compass heading (0-360°, 0° = north)  
+      // - beta: front/back tilt (-180° to 180°, 0° = flat, positive = tilt back)
+      // - gamma: left/right tilt (-90° to 90°, 0° = level)
       
-      // Direct mapping: the camera should look where the device is pointing
-      // No offset needed - beta directly represents the pitch angle
+      const alpha = (orientation.alpha * Math.PI) / 180;
+      const beta = (orientation.beta * Math.PI) / 180;
+      const gamma = (orientation.gamma * Math.PI) / 180;
+
+      // Fix AR camera orientation:
+      // The key insight: we need to apply rotations in the correct order and direction
+      // to match how the device camera sees the world
+      
+      // For AR camera looking through device screen:
+      // 1. Pitch: beta controls looking up/down (but inverted from device tilt)
+      // 2. Yaw: alpha controls compass direction 
+      // 3. Roll: gamma controls screen rotation
+      
       cameraRef.current.rotation.set(
-        beta,                // X rotation: pitch (direct device tilt)
-        -alpha,              // Y rotation: yaw (negated for correct compass direction)
-        gamma                // Z rotation: roll (device tilt/roll)
+        -beta,               // X rotation: pitch (inverted - when device tilts up, camera looks down)
+        alpha,               // Y rotation: yaw (direct compass heading)
+        -gamma               // Z rotation: roll (inverted for screen orientation)
       );
     }
 
@@ -169,31 +175,36 @@ function ARContent({ windmills, userLocation, orientation, videoTexture }: Mobil
       {/* Wind turbines positioned relative to user at origin */}
       {windmills.map((windmill) => {
         const relativePosition = convertGPSToLocal(windmill.position, userLocation);
-        console.log(`AR Windmill ${windmill.id} position:`, relativePosition, 
-          `Distance: ${Math.sqrt(relativePosition[0]**2 + relativePosition[2]**2).toFixed(1)}m`);
+        
+        // Calculate distance for debugging
+        const distance = Math.sqrt(relativePosition[0]**2 + relativePosition[2]**2);
+        console.log(`AR Windmill ${windmill.id}:`, {
+          position: relativePosition,
+          distance: `${distance.toFixed(1)}m`,
+          coordinates: `GPS(${windmill.position.latitude.toFixed(6)}, ${windmill.position.longitude.toFixed(6)})`,
+          worldPos: `World(X:${relativePosition[0].toFixed(1)}, Y:${relativePosition[1].toFixed(1)}, Z:${relativePosition[2].toFixed(1)})`
+        });
         
         return (
           <group key={windmill.id}>
-            {/* Debug marker - much larger and brighter for AR */}
-            <mesh position={[relativePosition[0], relativePosition[1] + 20, relativePosition[2]]}>
-              <sphereGeometry args={[20, 8, 8]} />
-              <meshStandardMaterial color="magenta" emissive="magenta" emissiveIntensity={0.3} />
+            {/* Debug marker - positioned at windmill base */}
+            <mesh position={[relativePosition[0], relativePosition[1] + 10, relativePosition[2]]}>
+              <sphereGeometry args={[15, 8, 8]} />
+              <meshStandardMaterial color="magenta" emissive="magenta" emissiveIntensity={0.5} />
             </mesh>
             
-            {/* Tall marker stick for visibility */}
-            <mesh position={[relativePosition[0], relativePosition[1] + 75, relativePosition[2]]}>
-              <boxGeometry args={[5, 150, 5]} />
-              <meshStandardMaterial color="orange" emissive="orange" emissiveIntensity={0.2} />
+            {/* Distance marker stick */}
+            <mesh position={[relativePosition[0], relativePosition[1] + 60, relativePosition[2]]}>
+              <boxGeometry args={[3, 120, 3]} />
+              <meshStandardMaterial color="orange" emissive="orange" emissiveIntensity={0.4} />
             </mesh>
             
-            {/* Actual windmill - temporarily scaled up for AR testing */}
-            <group scale={[2, 2, 2]}>
-              <WindmillWithAudio
-                config={windmill}
-                position={relativePosition}
-                userLocation={userLocation}
-              />
-            </group>
+            {/* Actual windmill */}
+            <WindmillWithAudio
+              config={windmill}
+              position={relativePosition}
+              userLocation={userLocation}
+            />
           </group>
         );
       })}
@@ -205,7 +216,7 @@ export function MobileARScene({ windmills, userLocation }: MobileARSceneProps) {
   const { orientation, isSupported, hasPermission, error, requestPermission } = useDeviceOrientation();
   const [videoTexture, setVideoTexture] = useState<VideoTexture | undefined>();
   const [cameraError, setCameraError] = useState<string | null>(null);
-  const initialCameraPosition: [number, number, number] = [0, 1.6, 0];
+  const initialCameraPosition: [number, number, number] = [0, 1.7, 0]; // User eye height
 
   // Initialize camera feed
   useEffect(() => {

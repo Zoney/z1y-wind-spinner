@@ -34,7 +34,7 @@ function ARCamera({ orientation, videoTexture }: ARCameraProps) {
     
     // Only apply orientation if we have valid data
     if (orientation.alpha !== null && orientation.beta !== null && orientation.gamma !== null) {
-      // Convert device orientation to radians and adjust for proper AR mapping
+      // Device orientation to look direction vector
       // Device orientation API:
       // - alpha: compass heading (0-360°, 0° = north)  
       // - beta: front/back tilt (-180° to 180°, 0° = flat, positive = tilt back)
@@ -44,20 +44,29 @@ function ARCamera({ orientation, videoTexture }: ARCameraProps) {
       const beta = (orientation.beta * Math.PI) / 180;
       const gamma = (orientation.gamma * Math.PI) / 180;
 
-      // Fix AR camera orientation:
-      // The key insight: we need to apply rotations in the correct order and direction
-      // to match how the device camera sees the world
+      // Calculate look direction based on device orientation
+      // Create a unit vector pointing in the direction the device is facing
+      const lookDistance = 1000; // Arbitrary distance for look direction
       
-      // For AR camera looking through device screen:
-      // 1. Pitch: beta controls looking up/down (but inverted from device tilt)
-      // 2. Yaw: alpha controls compass direction 
-      // 3. Roll: gamma controls screen rotation
+      // Convert spherical coordinates to cartesian
+      // Adjust beta to account for typical phone holding angle (90° upright)
+      const adjustedBeta = beta - Math.PI / 2; // Offset for upright phone position
       
-      cameraRef.current.rotation.set(
-        -beta,               // X rotation: pitch (inverted - when device tilts up, camera looks down)
-        alpha,               // Y rotation: yaw (direct compass heading)
-        -gamma               // Z rotation: roll (inverted for screen orientation)
+      // Calculate look target position
+      const lookX = Math.sin(alpha) * Math.cos(adjustedBeta) * lookDistance;
+      const lookY = Math.sin(adjustedBeta) * lookDistance;
+      const lookZ = -Math.cos(alpha) * Math.cos(adjustedBeta) * lookDistance;
+      
+      // Use lookAt to point camera in the direction device is facing
+      // This keeps windmills fixed in world space while changing view direction
+      cameraRef.current.lookAt(
+        cameraRef.current.position.x + lookX,
+        cameraRef.current.position.y + lookY,
+        cameraRef.current.position.z + lookZ
       );
+      
+      // Apply roll rotation separately (device screen rotation)
+      cameraRef.current.rotateZ(-gamma);
     }
 
     // Update background with camera feed
@@ -176,8 +185,21 @@ function ARContent({ windmills, userLocation, orientation, videoTexture }: Mobil
       {windmills.map((windmill) => {
         const relativePosition = convertGPSToLocal(windmill.position, userLocation);
         
+        // Validate position is reasonable
+        if (!relativePosition || relativePosition.some(coord => !isFinite(coord))) {
+          console.error(`Invalid position for windmill ${windmill.id}:`, relativePosition);
+          return null;
+        }
+        
         // Calculate distance for debugging
         const distance = Math.sqrt(relativePosition[0]**2 + relativePosition[2]**2);
+        
+        // Only show windmills within reasonable distance (50km max)
+        if (distance > 50000) {
+          console.warn(`Windmill ${windmill.id} too far away: ${distance.toFixed(1)}m`);
+          return null;
+        }
+        
         console.log(`AR Windmill ${windmill.id}:`, {
           position: relativePosition,
           distance: `${distance.toFixed(1)}m`,
@@ -187,17 +209,25 @@ function ARContent({ windmills, userLocation, orientation, videoTexture }: Mobil
         
         return (
           <group key={windmill.id}>
-            {/* Debug marker - positioned at windmill base */}
-            <mesh position={[relativePosition[0], relativePosition[1] + 10, relativePosition[2]]}>
-              <sphereGeometry args={[15, 8, 8]} />
-              <meshStandardMaterial color="magenta" emissive="magenta" emissiveIntensity={0.5} />
+            {/* Always visible debug marker - much brighter for AR */}
+            <mesh position={[relativePosition[0], Math.max(relativePosition[1] + 20, 20), relativePosition[2]]}>
+              <sphereGeometry args={[Math.min(20, Math.max(5, distance / 50)), 8, 8]} />
+              <meshBasicMaterial color="magenta" />
             </mesh>
             
-            {/* Distance marker stick */}
-            <mesh position={[relativePosition[0], relativePosition[1] + 60, relativePosition[2]]}>
-              <boxGeometry args={[3, 120, 3]} />
-              <meshStandardMaterial color="orange" emissive="orange" emissiveIntensity={0.4} />
+            {/* Tall distance marker stick - always above ground */}
+            <mesh position={[relativePosition[0], Math.max(relativePosition[1] + 75, 75), relativePosition[2]]}>
+              <boxGeometry args={[5, 150, 5]} />
+              <meshBasicMaterial color="orange" />
             </mesh>
+            
+            {/* Text label showing distance */}
+            <group position={[relativePosition[0], Math.max(relativePosition[1] + 150, 150), relativePosition[2]]}>
+              <mesh>
+                <sphereGeometry args={[2, 4, 4]} />
+                <meshBasicMaterial color="white" />
+              </mesh>
+            </group>
             
             {/* Actual windmill */}
             <WindmillWithAudio

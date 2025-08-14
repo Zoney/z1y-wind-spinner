@@ -35,6 +35,7 @@ function VRContent({ windmills, userLocation }: ImmersiveVRSceneProps) {
           sunPosition={[0, 1, 0]}
           inclination={0}
           azimuth={0.25}
+          opacity={0.05}
         />
         
         <Environment preset="sunset" />
@@ -51,7 +52,7 @@ function VRContent({ windmills, userLocation }: ImmersiveVRSceneProps) {
         {/* Ground plane - positioned relative to world origin */}
         <mesh position={[0, -50, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
           <planeGeometry args={[10000, 10000]} />
-          <meshStandardMaterial color="#2d5016" transparent opacity={0.8} />
+          <meshStandardMaterial color="#2d5016" transparent opacity={0.2} />
         </mesh>
         
         {/* Ocean/water effect */}

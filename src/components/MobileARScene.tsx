@@ -34,64 +34,31 @@ function ARCamera({ orientation, videoTexture }: ARCameraProps) {
     
     // Only apply orientation if we have valid data
     if (orientation.alpha !== null && orientation.beta !== null && orientation.gamma !== null) {
-      // Device orientation mapping for AR:
-      // - alpha: compass heading (0° = north, 90° = east, 180° = south, 270° = west)  
-      // - beta: device pitch (-180° to 180°, 0° = flat, 90° = upright, -90° = upside down)
-      // - gamma: device roll (-90° to 90°, 0° = level)
+      // Simplified AR camera - direct rotation mapping
+      // Device orientation API values:
+      // - alpha: compass heading (we'll use for horizontal rotation)
+      // - beta: device pitch (0° = flat, 90° = upright, -90° = upside down)
+      // - gamma: device roll (left/right tilt)
       
-      // Convert to radians
       const alpha = (orientation.alpha * Math.PI) / 180;
-      const beta = (orientation.beta * Math.PI) / 180;
+      const beta = (orientation.beta * Math.PI) / 180;  
       const gamma = (orientation.gamma * Math.PI) / 180;
 
-      // For AR, we need to calculate the direction vector the device camera is pointing
-      // This is different from rotating the camera - we're calculating where to look
+      // For AR: apply rotations directly to match device orientation
+      // Key insight: when phone tilts up, we want to look up
       
-      // Create rotation matrices for each axis
-      // Yaw (compass heading) - rotation around Y axis
-      const yaw = alpha;
+      // Reset camera rotation first
+      cameraRef.current.rotation.set(0, 0, 0);
       
-      // Pitch (device tilt) - rotation around X axis  
-      // When device is upright (beta = 90°), camera should look horizontally forward
-      // When device tilts up (beta > 90°), camera should look up
-      // When device tilts down (beta < 90°), camera should look down
-      const pitch = -(beta - Math.PI / 2); // Convert device angle to camera pitch
+      // Apply rotations in correct order:
+      // 1. Pitch (up/down tilt): when device tilts up (beta increases), look up
+      cameraRef.current.rotation.x = beta - Math.PI / 2; // Offset for upright phone
       
-      // Roll (device rotation) - we'll apply this separately
-      const roll = gamma;
-
-      // Calculate look direction vector using rotation matrices
-      // Start with forward vector (0, 0, -1) pointing into the screen
-      let lookX = 0;
-      let lookY = 0;  
-      let lookZ = -1;
+      // 2. Yaw (left/right turn): compass heading
+      cameraRef.current.rotation.y = alpha;
       
-      // Apply pitch rotation (around X axis)
-      const cosPitch = Math.cos(pitch);
-      const sinPitch = Math.sin(pitch);
-      const tempY = lookY * cosPitch - lookZ * sinPitch;
-      const tempZ = lookY * sinPitch + lookZ * cosPitch;
-      lookY = tempY;
-      lookZ = tempZ;
-      
-      // Apply yaw rotation (around Y axis)
-      const cosYaw = Math.cos(yaw);
-      const sinYaw = Math.sin(yaw);
-      const finalX = lookX * cosYaw + lookZ * sinYaw;
-      const finalZ = -lookX * sinYaw + lookZ * cosYaw;
-      lookX = finalX;
-      lookZ = finalZ;
-      
-      // Set camera to look in the calculated direction
-      const lookDistance = 1000;
-      cameraRef.current.lookAt(
-        cameraRef.current.position.x + lookX * lookDistance,
-        cameraRef.current.position.y + lookY * lookDistance,
-        cameraRef.current.position.z + lookZ * lookDistance
-      );
-      
-      // Apply roll rotation around the look direction
-      cameraRef.current.rotateZ(-roll);
+      // 3. Roll (screen rotation): ignore for now to avoid disorientation
+      // cameraRef.current.rotation.z = gamma;
     }
 
     // Update background with camera feed
@@ -113,9 +80,6 @@ function ARContent({ windmills, userLocation, orientation, videoTexture }: Mobil
     <>
       {/* AR Camera controls */}
       <ARCamera orientation={orientation} videoTexture={videoTexture} />
-      
-      {/* VR Compass for orientation */}
-      <VRCompass />
       
       {/* Main scene group - user is at origin */}
       <group position={[0, 0, 0]}>
@@ -225,39 +189,44 @@ function ARContent({ windmills, userLocation, orientation, videoTexture }: Mobil
           return null;
         }
         
+        // Ensure windmill is at proper height relative to ground
+        // Windmills should appear at their GPS altitude, which includes the tower height
+        const windmillGroundHeight = relativePosition[1]; // This is the altitude difference
+        const windmillTowerBase = windmillGroundHeight; // Tower base at ground level
+        const windmillHeight = windmill.towerHeight || 100; // Default 100m tower
+        
         console.log(`AR Windmill ${windmill.id}:`, {
           position: relativePosition,
           distance: `${distance.toFixed(1)}m`,
-          coordinates: `GPS(${windmill.position.latitude.toFixed(6)}, ${windmill.position.longitude.toFixed(6)})`,
-          worldPos: `World(X:${relativePosition[0].toFixed(1)}, Y:${relativePosition[1].toFixed(1)}, Z:${relativePosition[2].toFixed(1)})`
+          altitude: `${windmillGroundHeight.toFixed(1)}m`,
+          towerHeight: `${windmillHeight}m`,
+          coordinates: `GPS(${windmill.position.latitude.toFixed(6)}, ${windmill.position.longitude.toFixed(6)})`
         });
         
         return (
           <group key={windmill.id}>
-            {/* Always visible debug marker - much brighter for AR */}
-            <mesh position={[relativePosition[0], Math.max(relativePosition[1] + 20, 20), relativePosition[2]]}>
-              <sphereGeometry args={[Math.min(20, Math.max(5, distance / 50)), 8, 8]} />
+            {/* Ground marker at base of windmill */}
+            <mesh position={[relativePosition[0], windmillTowerBase + 5, relativePosition[2]]}>
+              <sphereGeometry args={[8, 8, 8]} />
+              <meshBasicMaterial color="red" />
+            </mesh>
+            
+            {/* Tall marker at nacelle height (top of tower) */}
+            <mesh position={[relativePosition[0], windmillTowerBase + windmillHeight, relativePosition[2]]}>
+              <sphereGeometry args={[12, 8, 8]} />
               <meshBasicMaterial color="magenta" />
             </mesh>
             
-            {/* Tall distance marker stick - always above ground */}
-            <mesh position={[relativePosition[0], Math.max(relativePosition[1] + 75, 75), relativePosition[2]]}>
-              <boxGeometry args={[5, 150, 5]} />
-              <meshBasicMaterial color="orange" />
+            {/* Vertical line showing tower height */}
+            <mesh position={[relativePosition[0], windmillTowerBase + windmillHeight / 2, relativePosition[2]]}>
+              <boxGeometry args={[2, windmillHeight, 2]} />
+              <meshBasicMaterial color="orange" transparent opacity={0.7} />
             </mesh>
             
-            {/* Text label showing distance */}
-            <group position={[relativePosition[0], Math.max(relativePosition[1] + 150, 150), relativePosition[2]]}>
-              <mesh>
-                <sphereGeometry args={[2, 4, 4]} />
-                <meshBasicMaterial color="white" />
-              </mesh>
-            </group>
-            
-            {/* Actual windmill */}
+            {/* Actual windmill - positioned at ground level */}
             <WindmillWithAudio
               config={windmill}
-              position={relativePosition}
+              position={[relativePosition[0], windmillTowerBase, relativePosition[2]]}
               userLocation={userLocation}
             />
           </group>

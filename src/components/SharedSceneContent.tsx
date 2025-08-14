@@ -130,7 +130,7 @@ export function SharedSceneContent({
       )}
 
       {/* Wind turbines positioned in fixed world coordinates relative to user */}
-      {windmills.map((windmill, index) => {
+      {windmills.map((windmill) => {
         // Get windmill position in fixed world coordinates
         const fixedWorldPosition = convertGPSToFixedWorld(windmill.position);
         // Offset by user's position to place user at origin

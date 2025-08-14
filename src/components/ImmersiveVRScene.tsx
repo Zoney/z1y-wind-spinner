@@ -1,11 +1,21 @@
 'use client';
 
-import { Canvas, useThree } from '@react-three/fiber';
+import { Canvas, useThree, ThreeEvent } from '@react-three/fiber';
 import { VRButton, XR, createXRStore, useXR } from '@react-three/xr';
 import { useEffect, useState, useRef } from 'react';
 import * as THREE from 'three';
 import { SharedSceneContent } from './SharedSceneContent';
 import { WindmillConfig, UserLocation } from '@/types/windmill';
+
+// Extended event types for XR interactions
+interface XRPointerEvent extends Omit<ThreeEvent<PointerEvent>, 'point' | 'pointerType'> {
+  point?: THREE.Vector3;
+  pointerType?: string;
+}
+
+interface XRClickEvent extends Omit<ThreeEvent<MouseEvent>, 'pointerType'> {
+  pointerType?: string;
+}
 
 interface ImmersiveVRSceneProps {
   windmills: WindmillConfig[];
@@ -57,26 +67,36 @@ function VRResetButton({ onReset }: { onReset: () => void }) {
   const dragStartPos = useRef<THREE.Vector3 | null>(null);
   const dragOffset = useRef<THREE.Vector3>(new THREE.Vector3());
 
-  const handlePointerDown = (event: { button: number; point: THREE.Vector3; stopPropagation: () => void }) => {
-    if (event.button === 0) { // Primary button (trigger)
+  // Use the new unified pointer events system
+  const handleClick = (event: XRClickEvent) => {
+    // Works for controllers AND hands (pinch)
+    console.log('Reset button clicked via', event.pointerType);
+    onReset();
+    event.stopPropagation();
+  };
+
+  const handlePointerDown = (event: XRPointerEvent) => {
+    if (event.button === 0) { // Primary button (trigger/pinch)
       setIsDragging(true);
-      dragStartPos.current = event.point.clone();
-      dragOffset.current.set(
-        event.point.x - position[0],
-        event.point.y - position[1], 
-        event.point.z - position[2]
-      );
+      if (event.point) {
+        dragStartPos.current = event.point.clone();
+        dragOffset.current.set(
+          event.point.x - position[0],
+          event.point.y - position[1], 
+          event.point.z - position[2]
+        );
+      }
       event.stopPropagation();
     }
   };
 
-  const handlePointerUp = (event: { point?: THREE.Vector3 }) => {
+  const handlePointerUp = (event: XRPointerEvent) => {
     if (isDragging) {
       // Check for click before clearing dragStartPos
       if (event.point && dragStartPos.current) {
         const dragDistance = event.point.distanceTo(dragStartPos.current);
         if (dragDistance < 0.1) { // Less than 10cm of movement
-          onReset();
+          handleClick(event as XRClickEvent);
         }
       }
       
@@ -85,7 +105,7 @@ function VRResetButton({ onReset }: { onReset: () => void }) {
     }
   };
 
-  const handlePointerMove = (event: { point?: THREE.Vector3 }) => {
+  const handlePointerMove = (event: XRPointerEvent) => {
     if (isDragging && event.point) {
       const newPosition: [number, number, number] = [
         event.point.x - dragOffset.current.x,
@@ -103,6 +123,7 @@ function VRResetButton({ onReset }: { onReset: () => void }) {
         ref={meshRef}
         onPointerEnter={() => setHovered(true)}
         onPointerLeave={() => setHovered(false)}
+        onClick={handleClick}
         onPointerDown={handlePointerDown}
         onPointerUp={handlePointerUp}
         onPointerMove={handlePointerMove}
@@ -141,6 +162,18 @@ function VRResetButton({ onReset }: { onReset: () => void }) {
 }
 
 function VRContent({ windmills, userLocation }: ImmersiveVRSceneProps) {
+  const session = useXR((state) => state.session);
+  
+  useEffect(() => {
+    if (session) {
+      console.log('XR Session active:', {
+        enabledFeatures: session.enabledFeatures,
+        supportedFrameRates: session.supportedFrameRates,
+        inputSources: session.inputSources?.length || 0,
+      });
+    }
+  }, [session]);
+  
   const handleReset = () => {
     // Reset the XR session to recalibrate the headset's tracking space
     const xrSession = (window as typeof window & { navigator: Navigator & { xr?: { session?: XRSession } } }).navigator?.xr?.session;
@@ -182,8 +215,14 @@ function VRContent({ windmills, userLocation }: ImmersiveVRSceneProps) {
 
 export function ImmersiveVRScene({ windmills, userLocation }: ImmersiveVRSceneProps) {
   const store = createXRStore({
-    // Controllers and hands are now configured differently in the new API
-    // The store automatically handles input sources when they're available
+    // Customize the default hand ray appearance
+    hand: {
+      rayPointer: { rayModel: { color: '#00E5FF' } },
+    },
+    // Customize controller ray appearance
+    controller: {
+      rayPointer: { rayModel: { color: '#FF6B6B' } },
+    },
   });
   const initialCameraPosition: [number, number, number] = [0, 1.6, 0];
   
@@ -217,7 +256,8 @@ export function ImmersiveVRScene({ windmills, userLocation }: ImmersiveVRScenePr
         <p className="text-xs text-green-300 mb-1">✓ Windmills stay in fixed world positions</p>
         <p className="text-xs text-blue-300 mb-1">🧭 Compass shows your real-world orientation</p>
         <p className="text-xs text-purple-300 mb-1">👁️ Mixed Reality: See real world + windmills</p>
-        <p className="text-xs text-gray-300">Spatial audio enabled - wind turbine sounds based on distance</p>
+        <p className="text-xs text-gray-300 mb-1">Spatial audio enabled - wind turbine sounds based on distance</p>
+        <p className="text-xs text-cyan-300">👋 Hand tracking supported - pinch to interact</p>
       </div>
     </div>
   );

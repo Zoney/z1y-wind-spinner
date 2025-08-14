@@ -10,9 +10,15 @@ export function convertGPSToLocal(
   const deltaLat = (gpsCoord.latitude - userLocation.latitude) * Math.PI / 180;
   const deltaLon = (gpsCoord.longitude - userLocation.longitude) * Math.PI / 180;
   
-  const x = deltaLon * EARTH_RADIUS_KM * 1000 * Math.cos(userLocation.latitude * Math.PI / 180);
-  const z = -deltaLat * EARTH_RADIUS_KM * 1000;
+  // Calculate coordinates in standard GPS system
+  const eastWest = deltaLon * EARTH_RADIUS_KM * 1000 * Math.cos(userLocation.latitude * Math.PI / 180);
+  const northSouth = deltaLat * EARTH_RADIUS_KM * 1000;
   const y = gpsCoord.altitude - userLocation.altitude;
+  
+  // Transform to Three.js coordinate system:
+  // Try 90-degree rotation: North->East, East->South
+  const x = northSouth;   // North = +X
+  const z = eastWest;     // East = +Z
   
   return [x, y, z];
 }
@@ -24,9 +30,15 @@ export function convertGPSToFixedWorld(
   const deltaLat = (gpsCoord.latitude - referenceLocation.latitude) * Math.PI / 180;
   const deltaLon = (gpsCoord.longitude - referenceLocation.longitude) * Math.PI / 180;
   
-  const x = deltaLon * EARTH_RADIUS_KM * 1000 * Math.cos(referenceLocation.latitude * Math.PI / 180);
-  const z = -deltaLat * EARTH_RADIUS_KM * 1000;
+  // Calculate coordinates in standard GPS system
+  const eastWest = deltaLon * EARTH_RADIUS_KM * 1000 * Math.cos(referenceLocation.latitude * Math.PI / 180);
+  const northSouth = deltaLat * EARTH_RADIUS_KM * 1000;
   const y = gpsCoord.altitude - referenceLocation.altitude;
+  
+  // Transform to Three.js coordinate system:
+  // North = +X, East = +Z
+  const x = northSouth;   // North = +X
+  const z = eastWest;     // East = +Z
   
   return [x, y, z];
 }

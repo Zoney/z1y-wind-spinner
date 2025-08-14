@@ -113,13 +113,13 @@ function VRContent({ windmills, userLocation }: ImmersiveVRSceneProps) {
       
       {/* Debug: Reference axes */}
       <group>
-        {/* X axis (red) - pointing east */}
+        {/* X axis (red) - pointing north */}
         <mesh position={[50, 1, 0]}>
           <boxGeometry args={[100, 2, 2]} />
           <meshBasicMaterial color="red" />
         </mesh>
-        {/* Z axis (blue) - pointing north */}
-        <mesh position={[0, 1, -50]}>
+        {/* Z axis (blue) - pointing east */}
+        <mesh position={[0, 1, 50]}>
           <boxGeometry args={[2, 2, 100]} />
           <meshBasicMaterial color="blue" />
         </mesh>

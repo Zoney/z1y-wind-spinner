@@ -20,7 +20,8 @@ export function VRCompass() {
     camera.getWorldDirection(direction);
     
     // Calculate heading angle (Y-axis rotation)
-    const headingAngle = Math.atan2(direction.x, direction.z);
+    // With new coordinate system: North = +X, East = +Z
+    const headingAngle = Math.atan2(direction.z, direction.x);
     setHeading(headingAngle);
     
     // Update cardinal direction

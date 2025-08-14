@@ -34,39 +34,64 @@ function ARCamera({ orientation, videoTexture }: ARCameraProps) {
     
     // Only apply orientation if we have valid data
     if (orientation.alpha !== null && orientation.beta !== null && orientation.gamma !== null) {
-      // Device orientation to look direction vector
-      // Device orientation API:
-      // - alpha: compass heading (0-360°, 0° = north)  
-      // - beta: front/back tilt (-180° to 180°, 0° = flat, positive = tilt back)
-      // - gamma: left/right tilt (-90° to 90°, 0° = level)
+      // Device orientation mapping for AR:
+      // - alpha: compass heading (0° = north, 90° = east, 180° = south, 270° = west)  
+      // - beta: device pitch (-180° to 180°, 0° = flat, 90° = upright, -90° = upside down)
+      // - gamma: device roll (-90° to 90°, 0° = level)
       
+      // Convert to radians
       const alpha = (orientation.alpha * Math.PI) / 180;
       const beta = (orientation.beta * Math.PI) / 180;
       const gamma = (orientation.gamma * Math.PI) / 180;
 
-      // Calculate look direction based on device orientation
-      // Create a unit vector pointing in the direction the device is facing
-      const lookDistance = 1000; // Arbitrary distance for look direction
+      // For AR, we need to calculate the direction vector the device camera is pointing
+      // This is different from rotating the camera - we're calculating where to look
       
-      // Convert spherical coordinates to cartesian
-      // Adjust beta to account for typical phone holding angle (90° upright)
-      const adjustedBeta = beta - Math.PI / 2; // Offset for upright phone position
+      // Create rotation matrices for each axis
+      // Yaw (compass heading) - rotation around Y axis
+      const yaw = alpha;
       
-      // Calculate look target position
-      const lookX = Math.sin(alpha) * Math.cos(adjustedBeta) * lookDistance;
-      const lookY = Math.sin(adjustedBeta) * lookDistance;
-      const lookZ = -Math.cos(alpha) * Math.cos(adjustedBeta) * lookDistance;
+      // Pitch (device tilt) - rotation around X axis  
+      // When device is upright (beta = 90°), camera should look horizontally forward
+      // When device tilts up (beta > 90°), camera should look up
+      // When device tilts down (beta < 90°), camera should look down
+      const pitch = -(beta - Math.PI / 2); // Convert device angle to camera pitch
       
-      // Use lookAt to point camera in the direction device is facing
-      // This keeps windmills fixed in world space while changing view direction
+      // Roll (device rotation) - we'll apply this separately
+      const roll = gamma;
+
+      // Calculate look direction vector using rotation matrices
+      // Start with forward vector (0, 0, -1) pointing into the screen
+      let lookX = 0;
+      let lookY = 0;  
+      let lookZ = -1;
+      
+      // Apply pitch rotation (around X axis)
+      const cosPitch = Math.cos(pitch);
+      const sinPitch = Math.sin(pitch);
+      const tempY = lookY * cosPitch - lookZ * sinPitch;
+      const tempZ = lookY * sinPitch + lookZ * cosPitch;
+      lookY = tempY;
+      lookZ = tempZ;
+      
+      // Apply yaw rotation (around Y axis)
+      const cosYaw = Math.cos(yaw);
+      const sinYaw = Math.sin(yaw);
+      const finalX = lookX * cosYaw + lookZ * sinYaw;
+      const finalZ = -lookX * sinYaw + lookZ * cosYaw;
+      lookX = finalX;
+      lookZ = finalZ;
+      
+      // Set camera to look in the calculated direction
+      const lookDistance = 1000;
       cameraRef.current.lookAt(
-        cameraRef.current.position.x + lookX,
-        cameraRef.current.position.y + lookY,
-        cameraRef.current.position.z + lookZ
+        cameraRef.current.position.x + lookX * lookDistance,
+        cameraRef.current.position.y + lookY * lookDistance,
+        cameraRef.current.position.z + lookZ * lookDistance
       );
       
-      // Apply roll rotation separately (device screen rotation)
-      cameraRef.current.rotateZ(-gamma);
+      // Apply roll rotation around the look direction
+      cameraRef.current.rotateZ(-roll);
     }
 
     // Update background with camera feed

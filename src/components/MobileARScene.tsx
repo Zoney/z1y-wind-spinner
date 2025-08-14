@@ -27,34 +27,63 @@ interface ARCameraProps {
 function ARCamera({ orientation, videoTexture }: ARCameraProps) {
   const { camera, scene } = useThree();
   const cameraRef = useRef<PerspectiveCamera>(null);
+  const lastValidOrientation = useRef<{ alpha: number; beta: number; gamma: number } | null>(null);
 
   useFrame(() => {
     if (!cameraRef.current) return;
     
     // Only apply orientation if we have valid data
     if (orientation.alpha !== null && orientation.beta !== null && orientation.gamma !== null) {
-      // Device orientation API values:
-      // - alpha: compass heading (0-360°, 0 = North)
-      // - beta: device pitch (0° = flat, 90° = upright, -90° = upside down)
-      // - gamma: device roll (left/right tilt)
-      
-      // Convert to radians
-      const alpha = (orientation.alpha * Math.PI) / 180;
-      const beta = (orientation.beta * Math.PI) / 180;  
-      const gamma = (orientation.gamma * Math.PI) / 180;
+      // Store current valid orientation
+      const currentOrientation = {
+        alpha: orientation.alpha,
+        beta: orientation.beta,
+        gamma: orientation.gamma
+      };
 
-      // Use quaternion-based rotation to avoid gimbal lock
-      // Create rotation from device orientation using proper ZXY order
-      cameraRef.current.rotation.order = 'ZXY';
+      // Handle discontinuities by checking for large jumps
+      if (lastValidOrientation.current) {
+        const alphaDiff = Math.abs(currentOrientation.alpha - lastValidOrientation.current.alpha);
+        const betaDiff = Math.abs(currentOrientation.beta - lastValidOrientation.current.beta);
+        
+        // Handle alpha wraparound (0-360 boundary)
+        if (alphaDiff > 180) {
+          if (currentOrientation.alpha > 180) {
+            currentOrientation.alpha -= 360;
+          } else {
+            currentOrientation.alpha += 360;
+          }
+        }
+        
+        // Smooth large beta changes to prevent flipping
+        if (betaDiff > 30) {
+          currentOrientation.beta = lastValidOrientation.current.beta + 
+            Math.sign(currentOrientation.beta - lastValidOrientation.current.beta) * 30;
+        }
+      }
+
+      // Convert to radians with proper coordinate system mapping
+      // Device coordinate system -> Three.js coordinate system
+      const alpha = (currentOrientation.alpha * Math.PI) / 180;
+      const beta = (currentOrientation.beta * Math.PI) / 180;
+      const gamma = (currentOrientation.gamma * Math.PI) / 180;
+
+      // Use YXZ rotation order to avoid gimbal lock issues
+      cameraRef.current.rotation.order = 'YXZ';
       
       // Map device orientation to camera rotation:
-      // - Y rotation (yaw): compass heading (alpha)
-      // - X rotation (pitch): device tilt (beta) with proper offset
-      // - Z rotation (roll): device roll (gamma) - minimal for stability
+      // For portrait phone held upright:
+      // - alpha (compass): Y-axis rotation (horizontal turning)
+      // - beta (pitch): X-axis rotation (up/down looking)  
+      // - gamma (roll): Z-axis rotation (screen rotation)
       
-      cameraRef.current.rotation.y = -alpha; // Negative for correct compass direction
-      cameraRef.current.rotation.x = -(beta - Math.PI / 2); // Corrected pitch mapping
-      cameraRef.current.rotation.z = gamma * 0.1; // Dampened roll for stability
+      // Apply rotations with correct signs and offsets for natural AR behavior
+      cameraRef.current.rotation.y = alpha; // Compass heading
+      cameraRef.current.rotation.x = -(beta - Math.PI / 2); // Pitch (inverted for correct up/down)
+      cameraRef.current.rotation.z = -gamma * 0.2; // Minimal roll compensation
+      
+      // Store for next frame discontinuity detection
+      lastValidOrientation.current = currentOrientation;
     }
 
     // Update background with camera feed

@@ -35,17 +35,22 @@ function ARCamera({ orientation, videoTexture }: ARCameraProps) {
     // Only apply orientation if we have valid data
     if (orientation.alpha !== null && orientation.beta !== null && orientation.gamma !== null) {
       // Convert device orientation to radians
-      const alpha = (orientation.alpha * Math.PI) / 180; // Z-axis (compass heading)
-      const beta = (orientation.beta * Math.PI) / 180;   // X-axis (front/back tilt)
-      const gamma = (orientation.gamma * Math.PI) / 180; // Y-axis (left/right tilt)
+      const alpha = (orientation.alpha * Math.PI) / 180; // Compass heading
+      const beta = (orientation.beta * Math.PI) / 180;   // Front/back tilt
+      const gamma = (orientation.gamma * Math.PI) / 180; // Left/right tilt
 
-      // Simplified AR camera orientation
-      // For AR, we want the camera to represent the device's view direction
-      // Use a more standard orientation mapping
+      // AR Camera orientation:
+      // We want the camera to look exactly where the device camera is pointing
+      // Beta: -90° = pointing up, 0° = horizontal, 90° = pointing down
+      // Alpha: compass heading (0° = north, 90° = east, 180° = south, 270° = west)
+      // Gamma: device roll/tilt
+      
+      // Direct mapping: the camera should look where the device is pointing
+      // No offset needed - beta directly represents the pitch angle
       cameraRef.current.rotation.set(
-        -beta,    // X rotation: device front/back tilt (inverted)
-        alpha,    // Y rotation: compass heading
-        gamma     // Z rotation: device left/right roll
+        beta,                // X rotation: pitch (direct device tilt)
+        -alpha,              // Y rotation: yaw (negated for correct compass direction)
+        gamma                // Z rotation: roll (device tilt/roll)
       );
     }
 

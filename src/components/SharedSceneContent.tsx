@@ -64,11 +64,11 @@ export function SharedSceneContent({
       {/* Compass - works in both VR and AR */}
       {showCompass && <VRCompass />}
       
-      {/* Measurement poles behind user in fixed world coordinates */}
+      {/* Measurement poles behind user - positioned relative to user (not using userOffset) */}
       {showMeasurementPoles && (
         <group>
           {/* 1m pole - behind and to the left */}
-          <group position={[-5 - userOffset[0], -userOffset[1], -15 - userOffset[2]]}>
+          <group position={[-5, 0, 15]}>
             <mesh position={[0, 0.5, 0]}>
               <cylinderGeometry args={[0.1, 0.1, 1]} />
               <meshBasicMaterial color="orange" />
@@ -80,7 +80,7 @@ export function SharedSceneContent({
           </group>
           
           {/* 5m pole - behind and slightly to the left */}
-          <group position={[-2.5 - userOffset[0], -userOffset[1], -12 - userOffset[2]]}>
+          <group position={[-2.5, 0, 12]}>
             <mesh position={[0, 2.5, 0]}>
               <cylinderGeometry args={[0.1, 0.1, 5]} />
               <meshBasicMaterial color="yellow" />
@@ -92,7 +92,7 @@ export function SharedSceneContent({
           </group>
           
           {/* 10m pole - directly behind */}
-          <group position={[0 - userOffset[0], -userOffset[1], -10 - userOffset[2]]}>
+          <group position={[0, 0, 10]}>
             <mesh position={[0, 5, 0]}>
               <cylinderGeometry args={[0.1, 0.1, 10]} />
               <meshBasicMaterial color="green" />
@@ -104,7 +104,7 @@ export function SharedSceneContent({
           </group>
           
           {/* 100m pole - behind and to the right */}
-          <group position={[2.5 - userOffset[0], -userOffset[1], -12 - userOffset[2]]}>
+          <group position={[2.5, 0, 12]}>
             <mesh position={[0, 50, 0]}>
               <cylinderGeometry args={[0.2, 0.2, 100]} />
               <meshBasicMaterial color="blue" />
@@ -116,7 +116,7 @@ export function SharedSceneContent({
           </group>
           
           {/* 200m pole - behind and far to the right */}
-          <group position={[5 - userOffset[0], -userOffset[1], -15 - userOffset[2]]}>
+          <group position={[5, 0, 15]}>
             <mesh position={[0, 100, 0]}>
               <cylinderGeometry args={[0.3, 0.3, 200]} />
               <meshBasicMaterial color="red" />
@@ -134,49 +134,43 @@ export function SharedSceneContent({
         // Get windmill position in fixed world coordinates
         const fixedWorldPosition = convertGPSToFixedWorld(windmill.position);
         // Offset by user's position to place user at origin
-        let relativePosition: [number, number, number] = [
+        const relativePosition: [number, number, number] = [
           fixedWorldPosition[0] - userOffset[0],
           fixedWorldPosition[1] - userOffset[1], // Use actual height difference
           fixedWorldPosition[2] - userOffset[2]
         ];
-        
-        // For AR mode, ensure windmills are positioned at reasonable viewing distances
-        // If windmills are too close (< 50m), spread them out in a semicircle in front of user
-        const originalDistance = Math.sqrt(relativePosition[0]**2 + relativePosition[2]**2);
-        if (originalDistance < 50) {
-          // Position windmills in a semicircle from 200m to 800m in front of user
-          const angle = (index / windmills.length) * Math.PI - Math.PI/2; // -90° to +90°
-          const distance = 200 + (index * 100); // 200m, 300m, 400m, etc.
-          relativePosition = [
-            Math.cos(angle) * distance, // X position (left/right)
-            0, // Keep at ground level for now
-            -Math.sin(angle) * distance // Z position (always in front, negative Z)
-          ];
-        }
         
         const finalDistance = Math.sqrt(relativePosition[0]**2 + relativePosition[2]**2);
         console.log(`Windmill ${windmill.id}:`, {
           gps: windmill.position,
           fixedWorld: fixedWorldPosition,
           userOffset,
-          originalDistance: `${originalDistance.toFixed(1)}m`,
           relative: relativePosition,
-          finalDistance: `${finalDistance.toFixed(1)}m`
+          distance: `${finalDistance.toFixed(1)}m`
         });
         
         return (
           <group key={windmill.id}>
+            {/* Enhanced visibility markers - scale with distance */}
             {/* Debug marker - bright sphere at windmill base for visibility */}
             <mesh position={[relativePosition[0], 20, relativePosition[2]]}>
-              <sphereGeometry args={[5, 8, 8]} />
+              <sphereGeometry args={[Math.max(5, finalDistance / 100), 8, 8]} />
               <meshBasicMaterial color="lime" transparent opacity={0.9} />
             </mesh>
             
-            {/* Distance label higher up */}
-            <mesh position={[relativePosition[0], 60, relativePosition[2]]}>
-              <sphereGeometry args={[3, 8, 8]} />
+            {/* Distance label higher up - larger for distant windmills */}
+            <mesh position={[relativePosition[0], 60 + finalDistance / 50, relativePosition[2]]}>
+              <sphereGeometry args={[Math.max(3, finalDistance / 200), 8, 8]} />
               <meshBasicMaterial color="red" />
             </mesh>
+            
+            {/* Vertical beam for very distant windmills to help spot them */}
+            {finalDistance > 10000 && (
+              <mesh position={[relativePosition[0], finalDistance / 20, relativePosition[2]]}>
+                <cylinderGeometry args={[2, 2, finalDistance / 10]} />
+                <meshBasicMaterial color="yellow" transparent opacity={0.7} />
+              </mesh>
+            )}
             
             {/* Actual windmill */}
             <WindmillWithAudio

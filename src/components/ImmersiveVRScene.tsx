@@ -164,6 +164,8 @@ function VRContent({ windmills, userLocation }: ImmersiveVRSceneProps) {
       {/* Passthrough manager for VR headsets */}
       <PassthroughManager />
       
+      {/* VR Controllers and Hands are now handled automatically by the XRStore configuration */}
+      
       {/* VR Reset Button */}
       <VRResetButton onReset={handleReset} />
       
@@ -180,14 +182,8 @@ function VRContent({ windmills, userLocation }: ImmersiveVRSceneProps) {
 
 export function ImmersiveVRScene({ windmills, userLocation }: ImmersiveVRSceneProps) {
   const store = createXRStore({
-    controller: {
-      left: true,   // Enable left controller
-      right: true   // Enable right controller
-    },
-    hand: {
-      left: true,   // Enable left hand tracking
-      right: true   // Enable right hand tracking
-    }
+    // Controllers and hands are now configured differently in the new API
+    // The store automatically handles input sources when they're available
   });
   const initialCameraPosition: [number, number, number] = [0, 1.6, 0];
   
@@ -201,7 +197,7 @@ export function ImmersiveVRScene({ windmills, userLocation }: ImmersiveVRScenePr
           position: initialCameraPosition, 
           fov: 75,
           near: 0.1,
-          far: 50000 // Extended far plane for distant windmills
+          far: 200000 // Increased far plane to 200km for very distant windmills
         }}
         gl={{ 
           antialias: true,

@@ -2,17 +2,12 @@
 
 import { Canvas, useThree, ThreeEvent } from '@react-three/fiber';
 import { VRButton, XR, createXRStore, useXR } from '@react-three/xr';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import * as THREE from 'three';
 import { SharedSceneContent } from './SharedSceneContent';
 import { WindmillConfig, UserLocation } from '@/types/windmill';
 
 // Extended event types for XR interactions
-interface XRPointerEvent extends Omit<ThreeEvent<PointerEvent>, 'point' | 'pointerType'> {
-  point?: THREE.Vector3;
-  pointerType?: string;
-}
-
 interface XRClickEvent extends Omit<ThreeEvent<MouseEvent>, 'pointerType'> {
   pointerType?: string;
 }
@@ -80,6 +75,8 @@ function VRResetButton({ onReset }: { onReset: () => void }) {
         onPointerEnter={() => setHovered(true)}
         onPointerLeave={() => setHovered(false)}
         onClick={handleClick}
+        // @ts-expect-error - pointerEventsType is available in XR context
+        pointerEventsType={{ deny: 'grab' }}
       >
         <cylinderGeometry args={[0.08, 0.08, 0.03, 12]} />
         <meshBasicMaterial color={clicked ? "#ff8800" : hovered ? "#ff6666" : "#ff3333"} />

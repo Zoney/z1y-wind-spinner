@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { SimpleScene } from '@/components/SimpleScene';
 import { ImmersiveVRScene } from '@/components/ImmersiveVRScene';
-import { MobileARScene } from '@/components/MobileARScene';
 import { WindmillControls } from '@/components/WindmillControls';
 import { windmillConfigurations, grimstadUserLocation } from '@/data/windmill-config';
 import { WindmillConfig } from '@/types/windmill';
@@ -12,7 +11,6 @@ import { useGeolocation } from '@/hooks/useGeolocation';
 export default function Home() {
   const [windmills, setWindmills] = useState<WindmillConfig[]>(windmillConfigurations);
   const [showVR, setShowVR] = useState(false);
-  const [showAR, setShowAR] = useState(false);
   const { location, error, loading, retry } = useGeolocation();
   
   // Use GPS location if available, otherwise fallback to Grimstad location
@@ -35,22 +33,6 @@ export default function Home() {
     );
   }
 
-  if (showAR) {
-    return (
-      <div className="w-full h-screen">
-        <MobileARScene 
-          windmills={windmills} 
-          userLocation={userLocation}
-        />
-        <button 
-          onClick={() => setShowAR(false)}
-          className="absolute top-4 right-4 z-20 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded text-sm"
-        >
-          Exit AR Mode
-        </button>
-      </div>
-    );
-  }
 
   return (
     <div className="w-full h-screen">
@@ -79,12 +61,6 @@ export default function Home() {
             className="block w-full px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm"
           >
             🥽 {showVR ? 'Exit VR Mode' : 'Enable VR Headset Mode'}
-          </button>
-          <button 
-            onClick={() => setShowAR(!showAR)}
-            className="block w-full px-3 py-2 bg-green-600 hover:bg-green-700 rounded text-sm"
-          >
-            📱 {showAR ? 'Exit AR Mode' : 'Enable Mobile AR Mode'}
           </button>
         </div>
       </div>

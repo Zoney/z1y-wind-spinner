@@ -61,100 +61,45 @@ function PassthroughManager() {
 
 function VRResetButton({ onReset }: { onReset: () => void }) {
   const [hovered, setHovered] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
-  const [position, setPosition] = useState<[number, number, number]>([0, 1.2, -1.5]);
-  const meshRef = useRef<THREE.Mesh>(null);
-  const dragStartPos = useRef<THREE.Vector3 | null>(null);
-  const dragOffset = useRef<THREE.Vector3>(new THREE.Vector3());
+  const [clicked, setClicked] = useState(false);
+  const position: [number, number, number] = [0, 1.2, -1.5];
 
-  // Use the new unified pointer events system
   const handleClick = (event: XRClickEvent) => {
-    // Works for controllers AND hands (pinch)
     console.log('Reset button clicked via', event.pointerType);
+    setClicked(true);
     onReset();
     event.stopPropagation();
-  };
-
-  const handlePointerDown = (event: XRPointerEvent) => {
-    if (event.button === 0) { // Primary button (trigger/pinch)
-      setIsDragging(true);
-      if (event.point) {
-        dragStartPos.current = event.point.clone();
-        dragOffset.current.set(
-          event.point.x - position[0],
-          event.point.y - position[1], 
-          event.point.z - position[2]
-        );
-      }
-      event.stopPropagation();
-    }
-  };
-
-  const handlePointerUp = (event: XRPointerEvent) => {
-    if (isDragging) {
-      // Check for click before clearing dragStartPos
-      if (event.point && dragStartPos.current) {
-        const dragDistance = event.point.distanceTo(dragStartPos.current);
-        if (dragDistance < 0.1) { // Less than 10cm of movement
-          handleClick(event as XRClickEvent);
-        }
-      }
-      
-      setIsDragging(false);
-      dragStartPos.current = null;
-    }
-  };
-
-  const handlePointerMove = (event: XRPointerEvent) => {
-    if (isDragging && event.point) {
-      const newPosition: [number, number, number] = [
-        event.point.x - dragOffset.current.x,
-        event.point.y - dragOffset.current.y,
-        event.point.z - dragOffset.current.z
-      ];
-      setPosition(newPosition);
-    }
+    
+    setTimeout(() => setClicked(false), 200);
   };
 
   return (
     <group position={position}>
-      {/* Reset button - draggable red button */}
+      {/* Reset button - small clickable red button */}
       <mesh
-        ref={meshRef}
         onPointerEnter={() => setHovered(true)}
         onPointerLeave={() => setHovered(false)}
         onClick={handleClick}
-        onPointerDown={handlePointerDown}
-        onPointerUp={handlePointerUp}
-        onPointerMove={handlePointerMove}
       >
-        <cylinderGeometry args={[0.15, 0.15, 0.05, 16]} />
-        <meshBasicMaterial color={isDragging ? "#ffaa33" : hovered ? "#ff6666" : "#ff3333"} />
+        <cylinderGeometry args={[0.08, 0.08, 0.03, 12]} />
+        <meshBasicMaterial color={clicked ? "#ff8800" : hovered ? "#ff6666" : "#ff3333"} />
       </mesh>
       
       {/* Reset text above button */}
-      <mesh position={[0, 0.3, 0]}>
-        <planeGeometry args={[0.8, 0.2]} />
+      <mesh position={[0, 0.2, 0]}>
+        <planeGeometry args={[0.4, 0.1]} />
         <meshBasicMaterial color="white" transparent opacity={0.8} />
       </mesh>
       
-      {/* Glow effect when hovered or dragging */}
-      {(hovered || isDragging) && (
+      {/* Glow effect when hovered */}
+      {hovered && (
         <mesh>
-          <cylinderGeometry args={[0.2, 0.2, 0.02, 16]} />
+          <cylinderGeometry args={[0.12, 0.12, 0.01, 12]} />
           <meshBasicMaterial 
-            color={isDragging ? "#ffcc88" : "#ffaaaa"} 
+            color="#ffaaaa"
             transparent 
             opacity={0.3} 
           />
-        </mesh>
-      )}
-      
-      {/* Drag indicator when dragging */}
-      {isDragging && (
-        <mesh position={[0, -0.3, 0]}>
-          <planeGeometry args={[0.6, 0.15]} />
-          <meshBasicMaterial color="yellow" transparent opacity={0.6} />
         </mesh>
       )}
     </group>
@@ -245,7 +190,7 @@ function VRContent({ windmills, userLocation }: ImmersiveVRSceneProps) {
         </group>
       )}
       
-      {/* Shared scene content - same as AR */}
+      {/* Shared scene content */}
       <SharedSceneContent 
         windmills={windmills} 
         userLocation={userLocation}

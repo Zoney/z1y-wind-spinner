@@ -4,6 +4,7 @@ import { WindmillWithAudio } from './WindmillWithAudio';
 import { VRCompass } from './VRCompass';
 import { WindmillConfig, UserLocation } from '@/types/windmill';
 import { convertGPSToFixedWorld, getUserOffsetFromReference } from '@/utils/coordinates';
+import { useRef } from 'react';
 
 interface SharedSceneContentProps {
   windmills: WindmillConfig[];
@@ -18,6 +19,8 @@ export function SharedSceneContent({
   showCompass = true,
   showMeasurementPoles = true
 }: SharedSceneContentProps) {
+  // Track logged windmills to prevent spam
+  const loggedWindmills = useRef(new Set<string>());
   // Calculate user's offset from reference point in fixed world coordinates
   let userOffset: [number, number, number];
   try {
@@ -68,7 +71,7 @@ export function SharedSceneContent({
         </mesh>
       </group>
       
-      {/* Compass - works in both VR and AR */}
+      {/* Compass */}
       {showCompass && <VRCompass />}
       
       {/* Measurement poles behind user - positioned relative to user (not using userOffset) */}
@@ -149,13 +152,16 @@ export function SharedSceneContent({
           ];
           
           const finalDistance = Math.sqrt(relativePosition[0]**2 + relativePosition[2]**2);
-          console.log(`Windmill ${windmill.id}:`, {
-            gps: windmill.position,
-            fixedWorld: fixedWorldPosition,
-            userOffset,
-            relative: relativePosition,
-            distance: `${finalDistance.toFixed(1)}m`
-          });
+          
+          // Only log windmill positions once per component mount, not on every render
+          if (!loggedWindmills.current.has(windmill.id)) {
+            console.log(`[WindmillPos] ${windmill.id}:`, {
+              gps: windmill.position,
+              distance: `${finalDistance.toFixed(1)}m`,
+              bearing: `${Math.atan2(relativePosition[0], -relativePosition[2]) * 180 / Math.PI}°`
+            });
+            loggedWindmills.current.add(windmill.id);
+          }
         
           return (
             <group key={windmill.id}>

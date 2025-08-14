@@ -5,7 +5,6 @@ import { useRef, useEffect, useState } from 'react';
 import { PerspectiveCamera, VideoTexture } from 'three';
 import { Sky, Environment, Stars } from '@react-three/drei';
 import { WindmillWithAudio } from './WindmillWithAudio';
-import { VRCompass } from './VRCompass';
 import { WindmillConfig, UserLocation } from '@/types/windmill';
 import { convertGPSToLocal } from '@/utils/coordinates';
 import { useDeviceOrientation } from '@/hooks/useDeviceOrientation';
@@ -42,7 +41,7 @@ function ARCamera({ orientation, videoTexture }: ARCameraProps) {
       
       const alpha = (orientation.alpha * Math.PI) / 180;
       const beta = (orientation.beta * Math.PI) / 180;  
-      const gamma = (orientation.gamma * Math.PI) / 180;
+      // const gamma = (orientation.gamma * Math.PI) / 180; // Unused for now
 
       // For AR: apply rotations directly to match device orientation
       // Key insight: when phone tilts up, we want to look up
@@ -193,7 +192,7 @@ function ARContent({ windmills, userLocation, orientation, videoTexture }: Mobil
         // Windmills should appear at their GPS altitude, which includes the tower height
         const windmillGroundHeight = relativePosition[1]; // This is the altitude difference
         const windmillTowerBase = windmillGroundHeight; // Tower base at ground level
-        const windmillHeight = windmill.towerHeight || 100; // Default 100m tower
+        const windmillHeight = windmill.height || 100; // Default 100m tower
         
         console.log(`AR Windmill ${windmill.id}:`, {
           position: relativePosition,

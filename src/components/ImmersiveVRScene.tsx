@@ -2,7 +2,6 @@
 
 import { Canvas, useThree } from '@react-three/fiber';
 import { VRButton, XR, createXRStore, useXR } from '@react-three/xr';
-import { Sky, Environment, Stars } from '@react-three/drei';
 import { useEffect, useState } from 'react';
 import { WindmillWithAudio } from './WindmillWithAudio';
 import { VRCompass } from './VRCompass';
@@ -52,8 +51,6 @@ function PassthroughManager() {
 }
 
 function VRContent({ windmills, userLocation }: ImmersiveVRSceneProps) {
-  const xr = useXR();
-  const isPresenting = xr.session !== undefined;
   
   return (
     <>
@@ -69,65 +66,70 @@ function VRContent({ windmills, userLocation }: ImmersiveVRSceneProps) {
         <ambientLight intensity={0.3} />
         <directionalLight position={[10, 10, 5]} intensity={0.8} castShadow />
         
-        {/* Environment - conditional based on passthrough */}
-        {!isPresenting && (
-          <group>
-            <Sky
-              distance={450000}
-              sunPosition={[0, 1, 0]}
-              inclination={0}
-              azimuth={0.25}
-            />
-            <Environment preset="sunset" />
-            <Stars
-              radius={100}
-              depth={50}
-              count={5000}
-              factor={4}
-              saturation={0}
-              fade
-              speed={1}
-            />
-          </group>
-        )}
-        
-        {/* Ground plane - more transparent in VR for passthrough */}
-        <mesh position={[0, -50, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-          <planeGeometry args={[10000, 10000]} />
-          <meshStandardMaterial 
-            color="#2d5016" 
-            transparent 
-            opacity={isPresenting ? 0.05 : 0.2} 
-          />
-        </mesh>
-        
-        {/* Ocean/water effect - subtle in passthrough mode */}
-        {!isPresenting && (
-          <mesh position={[0, -51, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-            <planeGeometry args={[20000, 20000]} />
-            <meshStandardMaterial color="#006994" transparent opacity={0.6} />
-          </mesh>
-        )}
         
       </group>
       
-      {/* Debug: Reference axes */}
-      <group>
-        {/* X axis (red) - pointing north */}
-        <mesh position={[50, 1, 0]}>
-          <boxGeometry args={[100, 2, 2]} />
-          <meshBasicMaterial color="red" />
-        </mesh>
-        {/* Z axis (blue) - pointing east */}
-        <mesh position={[0, 1, 50]}>
-          <boxGeometry args={[2, 2, 100]} />
-          <meshBasicMaterial color="blue" />
-        </mesh>
-        {/* Y axis (green) - pointing up */}
-        <mesh position={[0, 50, 0]}>
-          <boxGeometry args={[2, 100, 2]} />
-          <meshBasicMaterial color="green" />
-        </mesh>
+      {/* Measurement poles behind starting position */}
+      <group position={[0, 0, -10]}>
+        {/* 1m pole */}
+        <group position={[-20, 0, 0]}>
+          <mesh position={[0, 0.5, 0]}>
+            <cylinderGeometry args={[0.1, 0.1, 1]} />
+            <meshBasicMaterial color="orange" />
+          </mesh>
+          <mesh position={[0, 1.2, 0]}>
+            <sphereGeometry args={[0.2, 8, 8]} />
+            <meshBasicMaterial color="orange" />
+          </mesh>
+        </group>
+        
+        {/* 5m pole */}
+        <group position={[-10, 0, 0]}>
+          <mesh position={[0, 2.5, 0]}>
+            <cylinderGeometry args={[0.1, 0.1, 5]} />
+            <meshBasicMaterial color="yellow" />
+          </mesh>
+          <mesh position={[0, 5.2, 0]}>
+            <sphereGeometry args={[0.2, 8, 8]} />
+            <meshBasicMaterial color="yellow" />
+          </mesh>
+        </group>
+        
+        {/* 10m pole */}
+        <group position={[0, 0, 0]}>
+          <mesh position={[0, 5, 0]}>
+            <cylinderGeometry args={[0.1, 0.1, 10]} />
+            <meshBasicMaterial color="green" />
+          </mesh>
+          <mesh position={[0, 10.2, 0]}>
+            <sphereGeometry args={[0.2, 8, 8]} />
+            <meshBasicMaterial color="green" />
+          </mesh>
+        </group>
+        
+        {/* 100m pole */}
+        <group position={[10, 0, 0]}>
+          <mesh position={[0, 50, 0]}>
+            <cylinderGeometry args={[0.2, 0.2, 100]} />
+            <meshBasicMaterial color="blue" />
+          </mesh>
+          <mesh position={[0, 100.5, 0]}>
+            <sphereGeometry args={[0.5, 8, 8]} />
+            <meshBasicMaterial color="blue" />
+          </mesh>
+        </group>
+        
+        {/* 200m pole */}
+        <group position={[20, 0, 0]}>
+          <mesh position={[0, 100, 0]}>
+            <cylinderGeometry args={[0.3, 0.3, 200]} />
+            <meshBasicMaterial color="red" />
+          </mesh>
+          <mesh position={[0, 200.5, 0]}>
+            <sphereGeometry args={[0.5, 8, 8]} />
+            <meshBasicMaterial color="red" />
+          </mesh>
+        </group>
       </group>
 
       {/* Wind turbines positioned relative to user at origin */}

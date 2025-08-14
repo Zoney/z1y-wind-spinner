@@ -1,7 +1,6 @@
 import {
   convertGPSToLocal,
   convertGPSToFixedWorld,
-  getUserOffsetFromReference,
   calculateDistance,
   getCardinalDirection,
   getNoiseLevel
@@ -201,7 +200,7 @@ describe('Coordinate System Integration Tests', () => {
   test('should maintain coordinate system consistency', () => {
     // Test that our coordinate system is mathematically consistent
     const windmill = testWindmills[0];
-    const [x, y, z] = convertGPSToLocal(windmill, userLocation);
+    const [x, , z] = convertGPSToLocal(windmill, userLocation);
     
     // Calculate distance using 3D coordinates
     const distance3D = Math.sqrt(x*x + z*z); // Only horizontal distance
@@ -216,7 +215,7 @@ describe('Coordinate System Integration Tests', () => {
   test('should correctly position all Grimstad windmills in expected directions', () => {
     // Based on real geography, most turbines should be west/southwest of user
     const positions = testWindmills.map(windmill => {
-      const [x, y, z] = convertGPSToLocal(windmill, userLocation);
+      const [x, , z] = convertGPSToLocal(windmill, userLocation);
       const bearing = Math.atan2(z, x); // Keep in radians for getCardinalDirection
       const normalizedBearing = (bearing * 180 / Math.PI + 360) % 360;
       return {
@@ -243,7 +242,7 @@ describe('Coordinate System Integration Tests', () => {
       altitude: userLocation.altitude
     };
 
-    const [x, y, z] = convertGPSToLocal(nearbyLocation, userLocation);
+    const [x, , z] = convertGPSToLocal(nearbyLocation, userLocation);
     const distance = calculateDistance(userLocation, nearbyLocation);
 
     expect(Math.abs(x)).toBeLessThan(1); // Less than 1m

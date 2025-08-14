@@ -19,7 +19,14 @@ export function SharedSceneContent({
   showMeasurementPoles = true
 }: SharedSceneContentProps) {
   // Calculate user's offset from reference point in fixed world coordinates
-  const userOffset = getUserOffsetFromReference(userLocation);
+  let userOffset: [number, number, number];
+  try {
+    userOffset = getUserOffsetFromReference(userLocation);
+  } catch (error) {
+    console.error('Error calculating user offset:', error);
+    // Fallback to origin if GPS calculation fails
+    userOffset = [0, 0, 0];
+  }
   
   return (
     <>
@@ -131,55 +138,68 @@ export function SharedSceneContent({
 
       {/* Wind turbines positioned in fixed world coordinates relative to user */}
       {windmills.map((windmill) => {
-        // Get windmill position in fixed world coordinates
-        const fixedWorldPosition = convertGPSToFixedWorld(windmill.position);
-        // Offset by user's position to place user at origin
-        const relativePosition: [number, number, number] = [
-          fixedWorldPosition[0] - userOffset[0],
-          fixedWorldPosition[1] - userOffset[1], // Use actual height difference
-          fixedWorldPosition[2] - userOffset[2]
-        ];
+        try {
+          // Get windmill position in fixed world coordinates
+          const fixedWorldPosition = convertGPSToFixedWorld(windmill.position);
+          // Offset by user's position to place user at origin
+          const relativePosition: [number, number, number] = [
+            fixedWorldPosition[0] - userOffset[0],
+            fixedWorldPosition[1] - userOffset[1], // Use actual height difference
+            fixedWorldPosition[2] - userOffset[2]
+          ];
+          
+          const finalDistance = Math.sqrt(relativePosition[0]**2 + relativePosition[2]**2);
+          console.log(`Windmill ${windmill.id}:`, {
+            gps: windmill.position,
+            fixedWorld: fixedWorldPosition,
+            userOffset,
+            relative: relativePosition,
+            distance: `${finalDistance.toFixed(1)}m`
+          });
         
-        const finalDistance = Math.sqrt(relativePosition[0]**2 + relativePosition[2]**2);
-        console.log(`Windmill ${windmill.id}:`, {
-          gps: windmill.position,
-          fixedWorld: fixedWorldPosition,
-          userOffset,
-          relative: relativePosition,
-          distance: `${finalDistance.toFixed(1)}m`
-        });
-        
-        return (
-          <group key={windmill.id}>
-            {/* Enhanced visibility markers - scale with distance */}
-            {/* Debug marker - bright sphere at windmill base for visibility */}
-            <mesh position={[relativePosition[0], 20, relativePosition[2]]}>
-              <sphereGeometry args={[Math.max(5, finalDistance / 100), 8, 8]} />
-              <meshBasicMaterial color="lime" transparent opacity={0.9} />
-            </mesh>
-            
-            {/* Distance label higher up - larger for distant windmills */}
-            <mesh position={[relativePosition[0], 60 + finalDistance / 50, relativePosition[2]]}>
-              <sphereGeometry args={[Math.max(3, finalDistance / 200), 8, 8]} />
-              <meshBasicMaterial color="red" />
-            </mesh>
-            
-            {/* Vertical beam for very distant windmills to help spot them */}
-            {finalDistance > 10000 && (
-              <mesh position={[relativePosition[0], finalDistance / 20, relativePosition[2]]}>
-                <cylinderGeometry args={[2, 2, finalDistance / 10]} />
-                <meshBasicMaterial color="yellow" transparent opacity={0.7} />
+          return (
+            <group key={windmill.id}>
+              {/* Enhanced visibility markers - scale with distance */}
+              {/* Debug marker - bright sphere at windmill base for visibility */}
+              <mesh position={[relativePosition[0], 20, relativePosition[2]]}>
+                <sphereGeometry args={[Math.max(5, finalDistance / 100), 8, 8]} />
+                <meshBasicMaterial color="lime" transparent opacity={0.9} />
               </mesh>
-            )}
-            
-            {/* Actual windmill */}
-            <WindmillWithAudio
-              config={windmill}
-              position={relativePosition}
-              userLocation={userLocation}
-            />
-          </group>
-        );
+              
+              {/* Distance label higher up - larger for distant windmills */}
+              <mesh position={[relativePosition[0], 60 + finalDistance / 50, relativePosition[2]]}>
+                <sphereGeometry args={[Math.max(3, finalDistance / 200), 8, 8]} />
+                <meshBasicMaterial color="red" />
+              </mesh>
+              
+              {/* Vertical beam for very distant windmills to help spot them */}
+              {finalDistance > 10000 && (
+                <mesh position={[relativePosition[0], finalDistance / 20, relativePosition[2]]}>
+                  <cylinderGeometry args={[2, 2, finalDistance / 10]} />
+                  <meshBasicMaterial color="yellow" transparent opacity={0.7} />
+                </mesh>
+              )}
+              
+              {/* Actual windmill */}
+              <WindmillWithAudio
+                config={windmill}
+                position={relativePosition}
+                userLocation={userLocation}
+              />
+            </group>
+          );
+        } catch (error) {
+          console.error(`Error rendering windmill ${windmill.id}:`, error);
+          // Return error marker instead of crashing
+          return (
+            <group key={windmill.id}>
+              <mesh position={[0, 50, -50]}>
+                <sphereGeometry args={[5, 8, 8]} />
+                <meshBasicMaterial color="red" />
+              </mesh>
+            </group>
+          );
+        }
       })}
     </>
   );

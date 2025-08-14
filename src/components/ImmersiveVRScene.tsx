@@ -163,6 +163,7 @@ function VRResetButton({ onReset }: { onReset: () => void }) {
 
 function VRContent({ windmills, userLocation }: ImmersiveVRSceneProps) {
   const session = useXR((state) => state.session);
+  const [resetMessage, setResetMessage] = useState<string | null>(null);
   
   useEffect(() => {
     if (session) {
@@ -173,23 +174,45 @@ function VRContent({ windmills, userLocation }: ImmersiveVRSceneProps) {
       });
     }
   }, [session]);
-  
-  const handleReset = () => {
-    // Reset the XR session to recalibrate the headset's tracking space
-    const xrSession = (window as typeof window & { navigator: Navigator & { xr?: { session?: XRSession } } }).navigator?.xr?.session;
-    if (xrSession) {
-      try {
-        // Request a new reference space to reset tracking
-        xrSession.requestReferenceSpace('local-floor').then(() => {
-          console.log('VR tracking space reset successfully');
-        });
-      } catch (error) {
-        console.log('VR reset not supported:', error);
-      }
+
+  useEffect(() => {
+    if (resetMessage) {
+      const timer = setTimeout(() => setResetMessage(null), 5000);
+      return () => clearTimeout(timer);
     }
-    
-    // Force a re-render by triggering a state change
-    window.location.reload();
+  }, [resetMessage]);
+  
+  const handleReset = async () => {
+    try {
+      setResetMessage('Attempting VR reset...');
+      
+      // Check if GPS coordinates are available
+      if (!userLocation.latitude || !userLocation.longitude) {
+        setResetMessage('Error: GPS coordinates not available. Please enable location services and try again.');
+        return;
+      }
+
+      // Reset the XR session to recalibrate the headset's tracking space
+      const xrSession = session || (window as typeof window & { navigator: Navigator & { xr?: { session?: XRSession } } }).navigator?.xr?.session;
+      
+      if (xrSession && xrSession.requestReferenceSpace) {
+        try {
+          // Request a new reference space to reset tracking
+          await xrSession.requestReferenceSpace('local-floor');
+          setResetMessage('VR tracking space reset successfully!');
+          console.log('VR tracking space reset successfully');
+        } catch (referenceError) {
+          console.warn('Failed to reset reference space:', referenceError);
+          setResetMessage('VR reset partially successful. Try removing and putting on headset again.');
+        }
+      } else {
+        setResetMessage('VR reset not supported on this device. Try removing and putting on headset again.');
+        console.log('VR reset not supported - no active XR session or requestReferenceSpace method');
+      }
+    } catch (error) {
+      console.error('VR reset failed:', error);
+      setResetMessage(`Reset failed: ${error instanceof Error ? error.message : 'Unknown error'}. You can try clicking the button again.`);
+    }
   };
   
   return (
@@ -201,6 +224,26 @@ function VRContent({ windmills, userLocation }: ImmersiveVRSceneProps) {
       
       {/* VR Reset Button */}
       <VRResetButton onReset={handleReset} />
+      
+      {/* Reset message display in VR */}
+      {resetMessage && (
+        <group position={[0, 2, -2]}>
+          <mesh>
+            <planeGeometry args={[3, 0.8]} />
+            <meshBasicMaterial 
+              color={resetMessage.includes('Error') || resetMessage.includes('failed') ? "#ff6666" : 
+                     resetMessage.includes('successfully') ? "#66ff66" : "#ffff66"} 
+              transparent 
+              opacity={0.9} 
+            />
+          </mesh>
+          {/* Text representation - in a real app, you'd use Text component */}
+          <mesh position={[0, 0, 0.01]}>
+            <planeGeometry args={[2.8, 0.6]} />
+            <meshBasicMaterial color="black" transparent opacity={0.8} />
+          </mesh>
+        </group>
+      )}
       
       {/* Shared scene content - same as AR */}
       <SharedSceneContent 

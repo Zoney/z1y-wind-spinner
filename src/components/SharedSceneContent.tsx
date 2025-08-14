@@ -130,36 +130,51 @@ export function SharedSceneContent({
       )}
 
       {/* Wind turbines positioned in fixed world coordinates relative to user */}
-      {windmills.map((windmill) => {
+      {windmills.map((windmill, index) => {
         // Get windmill position in fixed world coordinates
         const fixedWorldPosition = convertGPSToFixedWorld(windmill.position);
         // Offset by user's position to place user at origin
-        const relativePosition: [number, number, number] = [
+        let relativePosition: [number, number, number] = [
           fixedWorldPosition[0] - userOffset[0],
-          0, // Place windmills at ground level (y=0)
+          fixedWorldPosition[1] - userOffset[1], // Use actual height difference
           fixedWorldPosition[2] - userOffset[2]
         ];
         
-        const distance = Math.sqrt(relativePosition[0]**2 + relativePosition[2]**2);
+        // For AR mode, ensure windmills are positioned at reasonable viewing distances
+        // If windmills are too close (< 50m), spread them out in a semicircle in front of user
+        const originalDistance = Math.sqrt(relativePosition[0]**2 + relativePosition[2]**2);
+        if (originalDistance < 50) {
+          // Position windmills in a semicircle from 200m to 800m in front of user
+          const angle = (index / windmills.length) * Math.PI - Math.PI/2; // -90° to +90°
+          const distance = 200 + (index * 100); // 200m, 300m, 400m, etc.
+          relativePosition = [
+            Math.cos(angle) * distance, // X position (left/right)
+            0, // Keep at ground level for now
+            -Math.sin(angle) * distance // Z position (always in front, negative Z)
+          ];
+        }
+        
+        const finalDistance = Math.sqrt(relativePosition[0]**2 + relativePosition[2]**2);
         console.log(`Windmill ${windmill.id}:`, {
           gps: windmill.position,
           fixedWorld: fixedWorldPosition,
           userOffset,
+          originalDistance: `${originalDistance.toFixed(1)}m`,
           relative: relativePosition,
-          distance: `${distance.toFixed(1)}m`
+          finalDistance: `${finalDistance.toFixed(1)}m`
         });
         
         return (
           <group key={windmill.id}>
             {/* Debug marker - bright sphere at windmill base for visibility */}
-            <mesh position={[relativePosition[0], 5, relativePosition[2]]}>
-              <sphereGeometry args={[3, 8, 8]} />
-              <meshBasicMaterial color="yellow" transparent opacity={0.8} />
+            <mesh position={[relativePosition[0], 20, relativePosition[2]]}>
+              <sphereGeometry args={[5, 8, 8]} />
+              <meshBasicMaterial color="lime" transparent opacity={0.9} />
             </mesh>
             
-            {/* Distance label */}
-            <mesh position={[relativePosition[0], 15, relativePosition[2]]}>
-              <sphereGeometry args={[1, 8, 8]} />
+            {/* Distance label higher up */}
+            <mesh position={[relativePosition[0], 60, relativePosition[2]]}>
+              <sphereGeometry args={[3, 8, 8]} />
               <meshBasicMaterial color="red" />
             </mesh>
             

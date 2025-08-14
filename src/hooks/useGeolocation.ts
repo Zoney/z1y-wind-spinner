@@ -27,6 +27,12 @@ export function useGeolocation(): GeolocationState {
       return;
     }
 
+    // Check if we're in an XR session which might restrict geolocation
+    const isInXR = 'xr' in navigator && (window as any).navigator?.xr?.session;
+    if (isInXR) {
+      console.log('XR session detected - requesting geolocation permissions explicitly');
+    }
+
     setState(prev => ({ ...prev, loading: true, error: null }));
 
     const handleSuccess = (position: GeolocationPosition) => {
@@ -49,23 +55,39 @@ export function useGeolocation(): GeolocationState {
     };
 
     const handleError = (error: GeolocationPositionError) => {
-      console.error('GPS Error:', error.message);
+      const errorDetails = {
+        code: error.code,
+        message: error.message,
+        isInXR: isInXR,
+        timestamp: new Date().toISOString()
+      };
+      
+      console.error('GPS Error:', errorDetails);
+      
+      let userFriendlyMessage = error.message;
+      if (isInXR) {
+        userFriendlyMessage = `VR GPS Error: ${error.message}. Try allowing location access or using the app before entering VR.`;
+      }
+      
       setState({
         location: null,
-        error: error.message,
+        error: userFriendlyMessage,
         loading: false,
       });
+    };
+
+    // Enhanced options for VR/XR sessions
+    const geoOptions = {
+      enableHighAccuracy: true,
+      timeout: isInXR ? 30000 : 15000, // Longer timeout for XR
+      maximumAge: isInXR ? 60000 : 30000, // Allow older positions in XR if needed
     };
 
     // Use watchPosition for continuous updates instead of getCurrentPosition
     const watchId = navigator.geolocation.watchPosition(
       handleSuccess,
       handleError,
-      {
-        enableHighAccuracy: true,
-        timeout: 15000,
-        maximumAge: 30000, // Reduced to get more frequent updates
-      }
+      geoOptions
     );
 
     // Return cleanup function

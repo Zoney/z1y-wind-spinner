@@ -72,16 +72,16 @@ function VRResetButton({ onReset }: { onReset: () => void }) {
 
   const handlePointerUp = (event: { point?: THREE.Vector3 }) => {
     if (isDragging) {
-      setIsDragging(false);
-      dragStartPos.current = null;
-      
-      // If we didn't drag much, treat it as a click
+      // Check for click before clearing dragStartPos
       if (event.point && dragStartPos.current) {
         const dragDistance = event.point.distanceTo(dragStartPos.current);
         if (dragDistance < 0.1) { // Less than 10cm of movement
           onReset();
         }
       }
+      
+      setIsDragging(false);
+      dragStartPos.current = null;
     }
   };
 

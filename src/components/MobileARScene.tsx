@@ -34,11 +34,11 @@ export function MobileARScene({ windmills, userLocation }: MobileARSceneProps) {
         } 
       });
       setCameraStream(stream);
+      setArEnabled(true);
     } catch (error) {
       console.error('Failed to access camera:', error);
+      alert('Camera access is required for AR mode. Please allow camera access and try again.');
     }
-    
-    setArEnabled(true);
   };
 
   return (
@@ -52,7 +52,7 @@ export function MobileARScene({ windmills, userLocation }: MobileARSceneProps) {
               video.play();
             }
           }}
-          className="absolute inset-0 w-full h-full object-cover z-0"
+          className="absolute inset-0 w-full h-full object-cover z-10"
           autoPlay
           playsInline
           muted
@@ -70,9 +70,11 @@ export function MobileARScene({ windmills, userLocation }: MobileARSceneProps) {
         gl={{ 
           antialias: true,
           powerPreference: "high-performance",
-          alpha: true // Transparent background for AR overlay
+          alpha: true, // Transparent background for AR overlay
+          preserveDrawingBuffer: false
         }}
-        className="absolute inset-0 z-10"
+        style={{ background: 'transparent' }}
+        className="absolute inset-0 z-20"
       >
         {/* AR Camera Controller - replaces VR headset tracking */}
         <ARCameraController enableControls={arEnabled} />
@@ -125,7 +127,7 @@ export function MobileARScene({ windmills, userLocation }: MobileARSceneProps) {
           
           {isSupported && permission === 'granted' && !arEnabled && (
             <button
-              onClick={() => setArEnabled(true)}
+              onClick={handleEnableAR}
               className="w-full px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm"
             >
               ▶️ Start AR Mode
